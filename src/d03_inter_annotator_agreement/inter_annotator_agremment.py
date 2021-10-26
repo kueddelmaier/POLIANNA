@@ -47,7 +47,7 @@ def row_to_span_list(row):
 
 
 
-def _get_score_article(span_list,  scoring_metric, finished_annotators, index, **optional_tuple_properties):
+def _get_score_article(span_list,  scoring_metric, finished_annotators, **optional_tuple_properties):
     """
     Calculates scoring metric based on tuple algo of spanlist of a single article. Optional tuple properties related to tuple matching, e.g gamma
 
@@ -58,14 +58,6 @@ def _get_score_article(span_list,  scoring_metric, finished_annotators, index, *
     #annotators = set([span_.annotator for span_ in span_list])
     annotators = finished_annotators
 
-    if len(annotators) < 2:
-        #return np.nan
-        print(index)
-        print('anno:', annotators)
-        print('spanlist', span_list)
-        print('')
-
-        #return 'Less than two'
 
     if scoring_metric == 'pygamma':
         score = unified_gamma(span_list, **optional_tuple_properties)
@@ -126,7 +118,7 @@ class Inter_Annotator_Agreement(Corpus):
 
         
 
-    def append_total_score_per_article(self, scoring_metrics, append_to_df = False, weight_by_tokens = True, **optional_tuple_properties):
+    def append_total_score_per_article_parallel(self, scoring_metrics, append_to_df = False, weight_by_tokens = True, **optional_tuple_properties):
 
         pandarallel.initialize( progress_bar = True)
 
@@ -139,7 +131,7 @@ class Inter_Annotator_Agreement(Corpus):
             self.df[column_name] = self.df.parallel_apply(lambda row: _get_score_article(row_to_span_list(row), scoring_metric, **optional_tuple_properties), axis=1)
 
 
-    def append_total_score_per_article_no_parallel(self, scoring_metrics, append_to_df = False, weight_by_tokens = True, **optional_tuple_properties):
+    def append_total_score_per_article(self, scoring_metrics, append_to_df = False, weight_by_tokens = True, **optional_tuple_properties):
         
 
         tqdm.pandas()
@@ -150,7 +142,7 @@ class Inter_Annotator_Agreement(Corpus):
             if column_name in self.df.columns:
                 continue
 
-            self.df[column_name] = self.df.progress_apply(lambda row: _get_score_article(row_to_span_list(row), scoring_metric, row['Finished_Annotators'], row,  **optional_tuple_properties), axis=1)
+            self.df[column_name] = self.df.progress_apply(lambda row: _get_score_article(row_to_span_list(row), scoring_metric, row['Finished_Annotators'],  **optional_tuple_properties), axis=1)
 
 
     def get_total_score_df(self, columns = 'all', annotator = 'all', weight_by = 'Tokens'):
@@ -249,6 +241,9 @@ class Inter_Annotator_Agreement(Corpus):
 
             span_list_repo = [span_ for span_ in span_list if span_.rep == repo]
             annotators_span_list_repo = set([span_.annotator for span_ in span_list_repo])
+
+            if len(annotators_span_list_repo) < 2:
+                continue
           #  if len(annotators_span_list_repo) < 2 or len():
           #      continue
 
@@ -257,7 +252,7 @@ class Inter_Annotator_Agreement(Corpus):
 
             else: n_tokens = 1
 
-            total_score += _get_score_article(span_list_repo , scoring_metric, **optional_tuple_properties) * n_tokens
+            total_score += _get_score_article(span_list_repo , scoring_metric, annotators_span_list_repo, **optional_tuple_properties) * n_tokens
             total_tokens += n_tokens
           
         return total_score / total_tokens
