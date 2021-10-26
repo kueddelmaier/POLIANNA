@@ -1,6 +1,6 @@
 import multiprocessing
 from itertools import chain, combinations
-from multiprocessing import Pool
+from multiprocessing import Pool, Value
 
 import numpy as np
 import pandas as pd
@@ -36,29 +36,36 @@ def keep_valid_anotations(span_series):
 
 def keep_valid_anotations_simple(span_series):
       
-    valid_annotations = [x for x in span_series if type(x) == list and len(x) > 2]
+    #valid_annotations = [x for x in span_series if type(x) == list and len(x) > 2]
+    valid_annotations = [x for x in span_series if type(x) == list]
     return valid_annotations
 
 def row_to_span_list(row):
-    annotations = row[df_annotation_marker:]
-    valid_annotations = keep_valid_anotations_simple(annotations)
-    valid_annotations_flat = list(chain.from_iterable(valid_annotations))
-    return valid_annotations_flat
+    annotations = row[row['Finished_Annotators']]
+    annotations_flat = list(chain.from_iterable(annotations))
+    return annotations_flat
 
 
 
-def _get_score_article(span_list,  scoring_metric, **optional_tuple_properties):
+def _get_score_article(span_list,  scoring_metric, finished_annotators, index, **optional_tuple_properties):
     """
     Calculates scoring metric based on tuple algo of spanlist of a single article. Optional tuple properties related to tuple matching, e.g gamma
 
     """
     if not isinstance(scoring_metric, str):
         raise ValueError('scoring metric must be a string')
-    
-    annotators = set([span_.annotator for span_ in span_list])
+
+    #annotators = set([span_.annotator for span_ in span_list])
+    annotators = finished_annotators
 
     if len(annotators) < 2:
-        return np.nan
+        #return np.nan
+        print(index)
+        print('anno:', annotators)
+        print('spanlist', span_list)
+        print('')
+
+        #return 'Less than two'
 
     if scoring_metric == 'pygamma':
         score = unified_gamma(span_list, **optional_tuple_properties)
@@ -76,7 +83,19 @@ def _get_score_article(span_list,  scoring_metric, **optional_tuple_properties):
 
             span_list_annotator_pair = [span_ for span_ in span_list if span_.annotator in annotator_pair]
 
-            if scoring_metric == 'f1_heuristic':
+            # the pygamma matching method runs into problem if one annotator or both have no spans
+            # therefore handle this case here
+            
+            spans_a1 = [span_ for span_ in span_list_annotator_pair if span_.annotator == annotator_pair[0]]
+            spans_a2 = [span_ for span_ in span_list_annotator_pair if span_.annotator == annotator_pair[1]]
+
+
+            if len(spans_a1) == 0 or len(spans_a2) == 0: 
+                #if either is no answer, the score is 1 if they agree, 0 otherwise
+                score += int(len(spans_a1) == len(spans_a2))
+
+
+            elif scoring_metric == 'f1_heuristic':
                 score += f1_heuristic(span_list_annotator_pair, annotator_pair)
             
             else:
@@ -96,6 +115,15 @@ class Inter_Annotator_Agreement(Corpus):
             self.df = df[0:10]
         else:
             self.df = df
+        
+        self.annotators = list(self.df.columns[df_annotation_marker:])
+
+    def keep_only_finished_articles(self):
+        self.df_non_curated = self.df[self.df['Article_State'] !='CURATION_FINISHED']
+        self.df = self.df[self.df.apply(lambda x: len(x['Finished_Annotators']) >=2 and x['Article_State'] =='CURATION_FINISHED',axis=1)]
+        #self.df = self.df[self.df['Article_State'] =='CURATION_FINISHED']
+
+
         
 
     def append_total_score_per_article(self, scoring_metrics, append_to_df = False, weight_by_tokens = True, **optional_tuple_properties):
@@ -122,17 +150,13 @@ class Inter_Annotator_Agreement(Corpus):
             if column_name in self.df.columns:
                 continue
 
-            self.df[column_name] = self.df.progress_apply(lambda row: _get_score_article(row_to_span_list(row), scoring_metric, **optional_tuple_properties), axis=1)
+            self.df[column_name] = self.df.progress_apply(lambda row: _get_score_article(row_to_span_list(row), scoring_metric, row['Finished_Annotators'], row,  **optional_tuple_properties), axis=1)
 
 
-
-
-
-
-    def get_total_score_df(self, columns = 'all', weight_by = 'Tokens'):
+    def get_total_score_df(self, columns = 'all', annotator = 'all', weight_by = 'Tokens'):
         
         df_columns = self.df.columns
-        total_n_tokens = len(list(chain.from_iterable(self.df['Tokens'])))
+        
 
         if columns == 'all':
             columns = [column for column in df_columns if 'score' in column]
@@ -149,13 +173,61 @@ class Inter_Annotator_Agreement(Corpus):
                 raise ValueError(non_valid_scores, 'do not exist')
         else:
             raise ValueError('Enter columns as a single string or as a list of strings')
+        
+        if annotator in self.annotators:
+            df_annotator = self.df[self.df.apply(lambda x: annotator in x['Finished_Annotators'],axis=1)]
+        
+        elif annotator == 'all':
+            df_annotator = self.df
+
+        else:
+            raise ValueError('This annotator does not exist! Enter a valid annotator')
+
 
         score_dict = {}
+        total_n_tokens = len(list(chain.from_iterable(df_annotator['Tokens'])))
 
         for score_col in columns:
-            score = self.df.apply(lambda x: len(x['Tokens']) * x[score_col] / total_n_tokens, axis=1).sum()
+            score = df_annotator.apply(lambda x: len(x['Tokens']) * x[score_col] / total_n_tokens, axis=1).sum()
             score_dict[score_col] = score
         
+        return score_dict
+
+
+    def get_score_annotator(self, annotator, columns = 'all', weight_by_tokens = True):
+        df_columns = self.df.columns
+
+        if columns == 'all':
+            columns = [column for column in df_columns if 'score' in column]
+            if len(columns) == 0:
+                raise ValueError('no score calculated yet, first calculate scores and append to dataframe ')
+
+        elif isinstance(columns, str):
+            if columns in df_columns:
+                columns = [columns]
+            else:
+                raise ValueError('This score does not exist')
+
+        elif isinstance(columns, list):
+            non_valid_scores = [x for x in columns if x not in df_columns]
+            if len(non_valid_scores) != 0:
+                raise ValueError(non_valid_scores, 'do not exist')
+        else:
+            raise ValueError('Enter columns as a single string or as a list of strings')
+
+        #keep only the columns where the annotator has valid annotations
+        df_annotator = self.df[self.df.apply(lambda x: annotator in x['Finished_Annotators'],axis=1)]
+
+   
+        
+        #get total tokens
+        total_n_tokens = len(list(chain.from_iterable(df_annotator['Tokens'])))
+        
+        score_dict = {}
+
+        for score_column in columns:
+            score_dict[score_column] = df_annotator.apply(lambda x: len(x['Tokens']) * x[score_column] / total_n_tokens, axis=1).sum()
+        #return the mean of scores weighted by the number of tokens
         return score_dict
         
                 
@@ -191,39 +263,6 @@ class Inter_Annotator_Agreement(Corpus):
         return total_score / total_tokens
     
     
-    def get_score_annotator(self, annotator, columns = 'all', weight_by_tokens = True):
-        df_columns = self.df.columns
-
-        if columns == 'all':
-            columns = [column for column in df_columns if 'score' in column]
-            if len(columns) == 0:
-                raise ValueError('no score calculated yet, first calculate scores and append to dataframe ')
-
-        elif isinstance(columns, str):
-            if columns in df_columns:
-                columns = [columns]
-            else:
-                raise ValueError('This score does not exist')
-
-        elif isinstance(columns, list):
-            non_valid_scores = [x for x in columns if x not in df_columns]
-            if len(non_valid_scores) != 0:
-                raise ValueError(non_valid_scores, 'do not exist')
-        else:
-            raise ValueError('Enter columns as a single string or as a list of strings')
-
-        #keep only the columns where the annotator has valid annotations
-        df_annotator = self.df[self.df.apply(lambda x : is_valid_annotation(x[annotator]) ,axis=1)]
-        
-        #get total tokens
-        total_n_tokens = len(list(chain.from_iterable(df_annotator['Tokens'])))
-        
-        score_dict = {}
-
-        for score_column in columns:
-            score_dict[score_column] = df_annotator.apply(lambda x: len(x['Tokens']) * x[score_column] / total_n_tokens, axis=1).sum()
-        #return the mean of scores weighted by the number of tokens
-        return score_dict
 
 
 

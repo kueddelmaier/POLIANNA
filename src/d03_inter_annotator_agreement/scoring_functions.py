@@ -60,10 +60,6 @@ def check_symmetric(a, rtol=1e-05, atol=1e-08):
 
 def unified_gamma(span_list, **dissimilarity_properties):
 
-    if len(span_list) < 2:
-        print(span_list)
-        raise ValueError('lenght of span_list in unified_gammma smaller than 2')
-    
     continuum = Continuum()
     for spanlist_span in span_list:
         continuum.add(spanlist_span.annotator, Segment(spanlist_span.start, spanlist_span.stop), spanlist_span.tag_)
@@ -79,7 +75,6 @@ def unified_gamma(span_list, **dissimilarity_properties):
         treshhold = np.median([(span_.start + span_.stop)/ 2 for span_ in span_list])
         spans_overlapping_treshhold = [span_ for span_ in span_list if span_.start < treshhold and span_.stop > treshhold]
 
-        
         i = 1
         while len(spans_overlapping_treshhold) != 0:
             treshhold = treshhold + (i * (-1) ** (i-1))
@@ -138,11 +133,10 @@ def f1_heuristic(span_list, annotator_pair):
 
     if len(curation_spans) + len(annotator_spans) != len(span_list):
         raise ValueError('Curation spans, annotations spans and span_list do not match in length')
-
+        
     tp_curation = 0
     tp_annotator = 0
 
-    
 
     for cur_span in curation_spans:
         span_matchings = [ann_span for ann_span in annotator_spans if ann_span.start < cur_span.stop and ann_span.stop > cur_span.start and ann_span.tag_ == cur_span.tag_]
