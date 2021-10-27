@@ -1,0 +1,1127 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Notebook to calculate Inter Annotator Agreement"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Import the libraries"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import sys\n",
+    "import pandas as pd\n",
+    "import collections \n",
+    "import os\n",
+    "import numpy as np\n",
+    "from itertools import chain\n",
+    "from itertools import combinations\n",
+    "sys.path.append('/home/jkuettel/NLP_spark/src')\n",
+    "sys.path.append('/home/jkuettel/NLP_spark')\n",
+    "from src.experiment_utils.helper_classes import token, span, repository\n",
+    "from src.d02_corpus_statistics.corpus import Corpus\n",
+    "from src.d03_inter_annotator_agreement.inter_annotator_agremment import Inter_Annotator_Agreement, _get_score_article\n",
+    "from definitions import df_annotation_marker\n",
+    "from src.d03_inter_annotator_agreement.inter_annotator_agremment import row_to_span_list, keep_valid_anotations\n",
+    "\n",
+    "\n",
+    "from definitions import ROOT_DIR\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Small Tutorial"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Load the dataframe stat_df"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>Policy</th>\n",
+       "      <th>Text</th>\n",
+       "      <th>Tokens</th>\n",
+       "      <th>Article_State</th>\n",
+       "      <th>Finished_Annotators</th>\n",
+       "      <th>Curation</th>\n",
+       "      <th>Onerva</th>\n",
+       "      <th>Fride</th>\n",
+       "      <th>Lynn</th>\n",
+       "      <th>Sebastian</th>\n",
+       "      <th>Alisha</th>\n",
+       "      <th>Fabian</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>EU_32006L0032_Title_0_Chapter_1_Section_0_Article_03</th>\n",
+       "      <td></td>\n",
+       "      <td>article 3\\r\\ndefinitions\\r\\nfor the purposes o...</td>\n",
+       "      <td>[start:0 stop:7 text:article tag_count:0, star...</td>\n",
+       "      <td>CURATION_FINISHED</td>\n",
+       "      <td>[Fride, Onerva]</td>\n",
+       "      <td>[annotator:curation layer:Instrumenttypes type...</td>\n",
+       "      <td>[annotator:Onerva layer:Instrumenttypes type:I...</td>\n",
+       "      <td>[annotator:Fride layer:Instrumenttypes type:In...</td>\n",
+       "      <td></td>\n",
+       "      <td></td>\n",
+       "      <td></td>\n",
+       "      <td></td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>EU_32006L0066_Title_0_Chapter_0_Section_0_Article_25</th>\n",
+       "      <td></td>\n",
+       "      <td>article 25\\r\\npenalties\\r\\nmember states shall...</td>\n",
+       "      <td>[start:0 stop:7 text:article tag_count:0, star...</td>\n",
+       "      <td>CURATION_FINISHED</td>\n",
+       "      <td>[Fride, Onerva]</td>\n",
+       "      <td>[annotator:curation layer:Instrumenttypes type...</td>\n",
+       "      <td>[annotator:Onerva layer:Instrumenttypes type:I...</td>\n",
+       "      <td>[annotator:Fride layer:Instrumenttypes type:In...</td>\n",
+       "      <td>[]</td>\n",
+       "      <td></td>\n",
+       "      <td></td>\n",
+       "      <td></td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>EU_32009L0028_Title_0_Chapter_0_Section_0_Article_07</th>\n",
+       "      <td></td>\n",
+       "      <td>article 7\\r\\njoint projects between member sta...</td>\n",
+       "      <td>[start:0 stop:7 text:article tag_count:0, star...</td>\n",
+       "      <td>CURATION_FINISHED</td>\n",
+       "      <td>[Alisha, Fabian]</td>\n",
+       "      <td>[annotator:curation layer:Policydesigncharacte...</td>\n",
+       "      <td>[]</td>\n",
+       "      <td></td>\n",
+       "      <td></td>\n",
+       "      <td>[]</td>\n",
+       "      <td>[annotator:Alisha layer:Policydesigncharacteri...</td>\n",
+       "      <td>[annotator:Fabian layer:Policydesigncharacteri...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>EU_32019L0944_Title_0_Chapter_6_Section_3_Article_47</th>\n",
+       "      <td></td>\n",
+       "      <td>article 47\\r\\nindependence of the transmission...</td>\n",
+       "      <td>[start:0 stop:7 text:article tag_count:0, star...</td>\n",
+       "      <td>CURATION_FINISHED</td>\n",
+       "      <td>[Alisha, Onerva]</td>\n",
+       "      <td>[annotator:curation layer:Instrumenttypes type...</td>\n",
+       "      <td>[annotator:Onerva layer:Instrumenttypes type:I...</td>\n",
+       "      <td></td>\n",
+       "      <td></td>\n",
+       "      <td></td>\n",
+       "      <td>[annotator:Alisha layer:Instrumenttypes type:I...</td>\n",
+       "      <td></td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>EU_32019R0631_Title_0_Chapter_0_Section_0_Article_14</th>\n",
+       "      <td></td>\n",
+       "      <td>article 14\\r\\nadjustment of m0 and tm0 values\\...</td>\n",
+       "      <td>[start:0 stop:7 text:article tag_count:0, star...</td>\n",
+       "      <td>CURATION_FINISHED</td>\n",
+       "      <td>[Onerva, Fabian]</td>\n",
+       "      <td>[annotator:curation layer:Instrumenttypes type...</td>\n",
+       "      <td>[annotator:Onerva layer:Instrumenttypes type:I...</td>\n",
+       "      <td></td>\n",
+       "      <td></td>\n",
+       "      <td></td>\n",
+       "      <td></td>\n",
+       "      <td>[annotator:Fabian layer:Policydesigncharacteri...</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "                                                   Policy  \\\n",
+       "EU_32006L0032_Title_0_Chapter_1_Section_0_Artic...          \n",
+       "EU_32006L0066_Title_0_Chapter_0_Section_0_Artic...          \n",
+       "EU_32009L0028_Title_0_Chapter_0_Section_0_Artic...          \n",
+       "EU_32019L0944_Title_0_Chapter_6_Section_3_Artic...          \n",
+       "EU_32019R0631_Title_0_Chapter_0_Section_0_Artic...          \n",
+       "\n",
+       "                                                                                                 Text  \\\n",
+       "EU_32006L0032_Title_0_Chapter_1_Section_0_Artic...  article 3\\r\\ndefinitions\\r\\nfor the purposes o...   \n",
+       "EU_32006L0066_Title_0_Chapter_0_Section_0_Artic...  article 25\\r\\npenalties\\r\\nmember states shall...   \n",
+       "EU_32009L0028_Title_0_Chapter_0_Section_0_Artic...  article 7\\r\\njoint projects between member sta...   \n",
+       "EU_32019L0944_Title_0_Chapter_6_Section_3_Artic...  article 47\\r\\nindependence of the transmission...   \n",
+       "EU_32019R0631_Title_0_Chapter_0_Section_0_Artic...  article 14\\r\\nadjustment of m0 and tm0 values\\...   \n",
+       "\n",
+       "                                                                                               Tokens  \\\n",
+       "EU_32006L0032_Title_0_Chapter_1_Section_0_Artic...  [start:0 stop:7 text:article tag_count:0, star...   \n",
+       "EU_32006L0066_Title_0_Chapter_0_Section_0_Artic...  [start:0 stop:7 text:article tag_count:0, star...   \n",
+       "EU_32009L0028_Title_0_Chapter_0_Section_0_Artic...  [start:0 stop:7 text:article tag_count:0, star...   \n",
+       "EU_32019L0944_Title_0_Chapter_6_Section_3_Artic...  [start:0 stop:7 text:article tag_count:0, star...   \n",
+       "EU_32019R0631_Title_0_Chapter_0_Section_0_Artic...  [start:0 stop:7 text:article tag_count:0, star...   \n",
+       "\n",
+       "                                                        Article_State  \\\n",
+       "EU_32006L0032_Title_0_Chapter_1_Section_0_Artic...  CURATION_FINISHED   \n",
+       "EU_32006L0066_Title_0_Chapter_0_Section_0_Artic...  CURATION_FINISHED   \n",
+       "EU_32009L0028_Title_0_Chapter_0_Section_0_Artic...  CURATION_FINISHED   \n",
+       "EU_32019L0944_Title_0_Chapter_6_Section_3_Artic...  CURATION_FINISHED   \n",
+       "EU_32019R0631_Title_0_Chapter_0_Section_0_Artic...  CURATION_FINISHED   \n",
+       "\n",
+       "                                                   Finished_Annotators  \\\n",
+       "EU_32006L0032_Title_0_Chapter_1_Section_0_Artic...     [Fride, Onerva]   \n",
+       "EU_32006L0066_Title_0_Chapter_0_Section_0_Artic...     [Fride, Onerva]   \n",
+       "EU_32009L0028_Title_0_Chapter_0_Section_0_Artic...    [Alisha, Fabian]   \n",
+       "EU_32019L0944_Title_0_Chapter_6_Section_3_Artic...    [Alisha, Onerva]   \n",
+       "EU_32019R0631_Title_0_Chapter_0_Section_0_Artic...    [Onerva, Fabian]   \n",
+       "\n",
+       "                                                                                             Curation  \\\n",
+       "EU_32006L0032_Title_0_Chapter_1_Section_0_Artic...  [annotator:curation layer:Instrumenttypes type...   \n",
+       "EU_32006L0066_Title_0_Chapter_0_Section_0_Artic...  [annotator:curation layer:Instrumenttypes type...   \n",
+       "EU_32009L0028_Title_0_Chapter_0_Section_0_Artic...  [annotator:curation layer:Policydesigncharacte...   \n",
+       "EU_32019L0944_Title_0_Chapter_6_Section_3_Artic...  [annotator:curation layer:Instrumenttypes type...   \n",
+       "EU_32019R0631_Title_0_Chapter_0_Section_0_Artic...  [annotator:curation layer:Instrumenttypes type...   \n",
+       "\n",
+       "                                                                                               Onerva  \\\n",
+       "EU_32006L0032_Title_0_Chapter_1_Section_0_Artic...  [annotator:Onerva layer:Instrumenttypes type:I...   \n",
+       "EU_32006L0066_Title_0_Chapter_0_Section_0_Artic...  [annotator:Onerva layer:Instrumenttypes type:I...   \n",
+       "EU_32009L0028_Title_0_Chapter_0_Section_0_Artic...                                                 []   \n",
+       "EU_32019L0944_Title_0_Chapter_6_Section_3_Artic...  [annotator:Onerva layer:Instrumenttypes type:I...   \n",
+       "EU_32019R0631_Title_0_Chapter_0_Section_0_Artic...  [annotator:Onerva layer:Instrumenttypes type:I...   \n",
+       "\n",
+       "                                                                                                Fride  \\\n",
+       "EU_32006L0032_Title_0_Chapter_1_Section_0_Artic...  [annotator:Fride layer:Instrumenttypes type:In...   \n",
+       "EU_32006L0066_Title_0_Chapter_0_Section_0_Artic...  [annotator:Fride layer:Instrumenttypes type:In...   \n",
+       "EU_32009L0028_Title_0_Chapter_0_Section_0_Artic...                                                      \n",
+       "EU_32019L0944_Title_0_Chapter_6_Section_3_Artic...                                                      \n",
+       "EU_32019R0631_Title_0_Chapter_0_Section_0_Artic...                                                      \n",
+       "\n",
+       "                                                   Lynn Sebastian  \\\n",
+       "EU_32006L0032_Title_0_Chapter_1_Section_0_Artic...                  \n",
+       "EU_32006L0066_Title_0_Chapter_0_Section_0_Artic...   []             \n",
+       "EU_32009L0028_Title_0_Chapter_0_Section_0_Artic...             []   \n",
+       "EU_32019L0944_Title_0_Chapter_6_Section_3_Artic...                  \n",
+       "EU_32019R0631_Title_0_Chapter_0_Section_0_Artic...                  \n",
+       "\n",
+       "                                                                                               Alisha  \\\n",
+       "EU_32006L0032_Title_0_Chapter_1_Section_0_Artic...                                                      \n",
+       "EU_32006L0066_Title_0_Chapter_0_Section_0_Artic...                                                      \n",
+       "EU_32009L0028_Title_0_Chapter_0_Section_0_Artic...  [annotator:Alisha layer:Policydesigncharacteri...   \n",
+       "EU_32019L0944_Title_0_Chapter_6_Section_3_Artic...  [annotator:Alisha layer:Instrumenttypes type:I...   \n",
+       "EU_32019R0631_Title_0_Chapter_0_Section_0_Artic...                                                      \n",
+       "\n",
+       "                                                                                               Fabian  \n",
+       "EU_32006L0032_Title_0_Chapter_1_Section_0_Artic...                                                     \n",
+       "EU_32006L0066_Title_0_Chapter_0_Section_0_Artic...                                                     \n",
+       "EU_32009L0028_Title_0_Chapter_0_Section_0_Artic...  [annotator:Fabian layer:Policydesigncharacteri...  \n",
+       "EU_32019L0944_Title_0_Chapter_6_Section_3_Artic...                                                     \n",
+       "EU_32019R0631_Title_0_Chapter_0_Section_0_Artic...  [annotator:Fabian layer:Policydesigncharacteri...  "
+      ]
+     },
+     "execution_count": 2,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "    \n",
+    "dataframe_dir = os.path.join(ROOT_DIR,'data/02_processed_to_dataframe', 'preprocessed_dataframe.pkl')\n",
+    "stat_df = pd.read_pickle(dataframe_dir)\n",
+    "stat_df.head()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "First create a object of class Inter annotator agreement. The constructor takes a stat_df as input, has a optional argument DEBUG where only the first 10 articles are taken to test different functions"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "test_evaluator = Inter_Annotator_Agreement(stat_df)\n",
+    "test_evaluator_debug = Inter_Annotator_Agreement(stat_df, DEBUG = True)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Inter_Annotator_Agreement is a child class of the Corpus class, so all methods of the Corpus class are available"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "[annotator:Onerva layer:Technologyandapplicationspecificity type:TechnologySpecificity tag:Tech_LowCarbon start:125 stop:141 text:renewable energy,\n",
+       " annotator:Onerva layer:Technologyandapplicationspecificity type:TechnologySpecificity tag:Tech_LowCarbon start:393 stop:409 text:renewable energy,\n",
+       " annotator:Onerva layer:Technologyandapplicationspecificity type:TechnologySpecificity tag:Tech_LowCarbon start:499 stop:515 text:renewable energy,\n",
+       " annotator:Onerva layer:Technologyandapplicationspecificity type:TechnologySpecificity tag:Tech_LowCarbon start:1276 stop:1292 text:renewable energy,\n",
+       " annotator:Onerva layer:Technologyandapplicationspecificity type:TechnologySpecificity tag:Tech_LowCarbon start:701 stop:716 text:energy products,\n",
+       " annotator:Fride layer:Technologyandapplicationspecificity type:TechnologySpecificity tag:Tech_LowCarbon start:866 stop:888 text:electricity generation,\n",
+       " annotator:Onerva layer:Technologyandapplicationspecificity type:TechnologySpecificity tag:Tech_LowCarbon start:614 stop:621 text:nuclear,\n",
+       " annotator:Onerva layer:Technologyandapplicationspecificity type:TechnologySpecificity tag:Tech_LowCarbon start:18 stop:25 text:nuclear,\n",
+       " annotator:Onerva layer:Technologyandapplicationspecificity type:TechnologySpecificity tag:Tech_LowCarbon start:95 stop:109 text:nuclear energy,\n",
+       " annotator:Onerva layer:Technologyandapplicationspecificity type:TechnologySpecificity tag:Tech_LowCarbon start:151 stop:158 text:nuclear,\n",
+       " annotator:Onerva layer:Technologyandapplicationspecificity type:TechnologySpecificity tag:Tech_LowCarbon start:189 stop:225 text:energy products and their aggregates]"
+      ]
+     },
+     "execution_count": 4,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "test_dir = repository(policy = 'EU_32008R1099')\n",
+    "test_evaluator.get_span_list(conditional_rep = test_dir, columns = 'annotators', item = 'tag', value =  'Tech_LowCarbon')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "To calculate the inter annonator agreement, there are two options\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Append the score to dataframe"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "This method appends the inter-annotator agreement for each article which at least two valid annoations based on a set of inter-annotator agreement measures. The scores are calculated in parallel, this is the recommended method for computationally intensive scores"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 21,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "scoring_metrics = ['f1_exact', 'f1_tokenwise', 'f1_partial', 'f1_heuristic'] #, 'pygamma']"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "INFO: Pandarallel will run on 48 workers.\n",
+      "INFO: Pandarallel will use Memory file system to transfer data between the main process and workers.\n"
+     ]
+    },
+    {
+     "data": {
+      "application/vnd.jupyter.widget-view+json": {
+       "model_id": "ae1d39a47b704a9aa193abfb0716f8a0",
+       "version_major": 2,
+       "version_minor": 0
+      },
+      "text/plain": [
+       "VBox(children=(HBox(children=(IntProgress(value=0, description='0.00%', max=10), Label(value='0 / 10'))), HBox…"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    },
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "Process ForkPoolWorker-21:\n",
+      "Process ForkPoolWorker-11:\n",
+      "Process ForkPoolWorker-25:\n",
+      "Process ForkPoolWorker-4:\n",
+      "Process ForkPoolWorker-35:\n",
+      "Process ForkPoolWorker-32:\n",
+      "Process ForkPoolWorker-18:\n",
+      "Process ForkPoolWorker-56:\n",
+      "Process ForkPoolWorker-26:\n",
+      "Process ForkPoolWorker-7:\n",
+      "Process ForkPoolWorker-14:\n",
+      "Process ForkPoolWorker-42:\n",
+      "Process ForkPoolWorker-54:\n",
+      "Process ForkPoolWorker-44:\n",
+      "Process ForkPoolWorker-10:\n",
+      "Process ForkPoolWorker-39:\n",
+      "Process ForkPoolWorker-15:\n",
+      "Process ForkPoolWorker-6:\n",
+      "Process ForkPoolWorker-2:\n",
+      "Process ForkPoolWorker-5:\n",
+      "Process ForkPoolWorker-16:\n",
+      "Process ForkPoolWorker-29:\n",
+      "Process ForkPoolWorker-33:\n",
+      "Process ForkPoolWorker-13:\n",
+      "Process ForkPoolWorker-8:\n",
+      "Process ForkPoolWorker-43:\n",
+      "Process ForkPoolWorker-40:\n",
+      "Process ForkPoolWorker-17:\n",
+      "Process ForkPoolWorker-58:\n",
+      "Process ForkPoolWorker-50:\n",
+      "Process ForkPoolWorker-28:\n",
+      "Process ForkPoolWorker-3:\n",
+      "Process ForkPoolWorker-51:\n",
+      "Process ForkPoolWorker-46:\n",
+      "Process ForkPoolWorker-20:\n",
+      "Process ForkPoolWorker-27:\n",
+      "Process ForkPoolWorker-57:\n",
+      "Process ForkPoolWorker-22:\n",
+      "Process ForkPoolWorker-41:\n",
+      "Process ForkPoolWorker-24:\n",
+      "Process ForkPoolWorker-9:\n",
+      "Process ForkPoolWorker-53:\n",
+      "Process ForkPoolWorker-19:\n",
+      "Process ForkPoolWorker-55:\n",
+      "Process ForkPoolWorker-38:\n",
+      "Process ForkPoolWorker-52:\n",
+      "Process ForkPoolWorker-59:\n",
+      "Traceback (most recent call last):\n",
+      "Process ForkPoolWorker-45:\n",
+      "Traceback (most recent call last):\n",
+      "Traceback (most recent call last):\n",
+      "Traceback (most recent call last):\n",
+      "Traceback (most recent call last):\n",
+      "Traceback (most recent call last):\n",
+      "Traceback (most recent call last):\n",
+      "Traceback (most recent call last):\n",
+      "Traceback (most recent call last):\n",
+      "Traceback (most recent call last):\n",
+      "Traceback (most recent call last):\n",
+      "Traceback (most recent call last):\n",
+      "Traceback (most recent call last):\n",
+      "Traceback (most recent call last):\n",
+      "Traceback (most recent call last):\n",
+      "Traceback (most recent call last):\n",
+      "Traceback (most recent call last):\n",
+      "Traceback (most recent call last):\n",
+      "Traceback (most recent call last):\n",
+      "Traceback (most recent call last):\n",
+      "Traceback (most recent call last):\n",
+      "  File \"/home/jkuettel/miniconda3/envs/nlp_spark/lib/python3.7/multiprocessing/process.py\", line 297, in _bootstrap\n",
+      "    self.run()\n",
+      "Traceback (most recent call last):\n",
+      "  File \"/home/jkuettel/miniconda3/envs/nlp_spark/lib/python3.7/multiprocessing/process.py\", line 297, in _bootstrap\n",
+      "    self.run()\n",
+      "Traceback (most recent call last):\n",
+      "  File \"/home/jkuettel/miniconda3/envs/nlp_spark/lib/python3.7/multiprocessing/process.py\", line 297, in _bootstrap\n",
+      "    self.run()\n"
+     ]
+    }
+   ],
+   "source": [
+    "test_evaluator.append_total_score_per_article(scoring_metrics)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "There is also a normal implementation which does not use parallel"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "100%|██████████| 448/448 [00:05<00:00, 84.54it/s] \n",
+      "100%|██████████| 448/448 [00:05<00:00, 88.99it/s] \n",
+      "100%|██████████| 448/448 [00:04<00:00, 92.60it/s] \n",
+      "100%|██████████| 448/448 [00:00<00:00, 1355.26it/s]\n"
+     ]
+    }
+   ],
+   "source": [
+    "test_evaluator.append_total_score_per_article_no_parallel(scoring_metrics)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Checking out the dataframe now:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>Policy</th>\n",
+       "      <th>Text</th>\n",
+       "      <th>Tokens</th>\n",
+       "      <th>Article_State</th>\n",
+       "      <th>Finished_Annotators</th>\n",
+       "      <th>Curation</th>\n",
+       "      <th>Onerva</th>\n",
+       "      <th>Fride</th>\n",
+       "      <th>Lynn</th>\n",
+       "      <th>Sebastian</th>\n",
+       "      <th>Alisha</th>\n",
+       "      <th>Fabian</th>\n",
+       "      <th>f1_exact_score</th>\n",
+       "      <th>f1_tokenwise_score</th>\n",
+       "      <th>f1_partial_score</th>\n",
+       "      <th>f1_heuristic_score</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>EU_32006L0032_Title_0_Chapter_1_Section_0_Article_03</th>\n",
+       "      <td></td>\n",
+       "      <td>article 3\\r\\ndefinitions\\r\\nfor the purposes o...</td>\n",
+       "      <td>[start:0 stop:7 text:article tag_count:0, star...</td>\n",
+       "      <td>CURATION_FINISHED</td>\n",
+       "      <td>[Fride, Onerva]</td>\n",
+       "      <td>[annotator:curation layer:Instrumenttypes type...</td>\n",
+       "      <td>[annotator:Onerva layer:Instrumenttypes type:I...</td>\n",
+       "      <td>[annotator:Fride layer:Instrumenttypes type:In...</td>\n",
+       "      <td></td>\n",
+       "      <td></td>\n",
+       "      <td></td>\n",
+       "      <td></td>\n",
+       "      <td>0.373418</td>\n",
+       "      <td>0.415289</td>\n",
+       "      <td>0.544304</td>\n",
+       "      <td>0.566417</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>EU_32006L0066_Title_0_Chapter_0_Section_0_Article_25</th>\n",
+       "      <td></td>\n",
+       "      <td>article 25\\r\\npenalties\\r\\nmember states shall...</td>\n",
+       "      <td>[start:0 stop:7 text:article tag_count:0, star...</td>\n",
+       "      <td>CURATION_FINISHED</td>\n",
+       "      <td>[Fride, Onerva]</td>\n",
+       "      <td>[annotator:curation layer:Instrumenttypes type...</td>\n",
+       "      <td>[annotator:Onerva layer:Instrumenttypes type:I...</td>\n",
+       "      <td>[annotator:Fride layer:Instrumenttypes type:In...</td>\n",
+       "      <td>[]</td>\n",
+       "      <td></td>\n",
+       "      <td></td>\n",
+       "      <td></td>\n",
+       "      <td>0.740741</td>\n",
+       "      <td>0.625000</td>\n",
+       "      <td>0.740741</td>\n",
+       "      <td>0.740741</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>EU_32009L0028_Title_0_Chapter_0_Section_0_Article_07</th>\n",
+       "      <td></td>\n",
+       "      <td>article 7\\r\\njoint projects between member sta...</td>\n",
+       "      <td>[start:0 stop:7 text:article tag_count:0, star...</td>\n",
+       "      <td>CURATION_FINISHED</td>\n",
+       "      <td>[Alisha, Fabian]</td>\n",
+       "      <td>[annotator:curation layer:Policydesigncharacte...</td>\n",
+       "      <td>[]</td>\n",
+       "      <td></td>\n",
+       "      <td></td>\n",
+       "      <td>[]</td>\n",
+       "      <td>[annotator:Alisha layer:Policydesigncharacteri...</td>\n",
+       "      <td>[annotator:Fabian layer:Policydesigncharacteri...</td>\n",
+       "      <td>0.382979</td>\n",
+       "      <td>0.345238</td>\n",
+       "      <td>0.425532</td>\n",
+       "      <td>0.425532</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>EU_32019L0944_Title_0_Chapter_6_Section_3_Article_47</th>\n",
+       "      <td></td>\n",
+       "      <td>article 47\\r\\nindependence of the transmission...</td>\n",
+       "      <td>[start:0 stop:7 text:article tag_count:0, star...</td>\n",
+       "      <td>CURATION_FINISHED</td>\n",
+       "      <td>[Alisha, Onerva]</td>\n",
+       "      <td>[annotator:curation layer:Instrumenttypes type...</td>\n",
+       "      <td>[annotator:Onerva layer:Instrumenttypes type:I...</td>\n",
+       "      <td></td>\n",
+       "      <td></td>\n",
+       "      <td></td>\n",
+       "      <td>[annotator:Alisha layer:Instrumenttypes type:I...</td>\n",
+       "      <td></td>\n",
+       "      <td>0.191304</td>\n",
+       "      <td>0.176783</td>\n",
+       "      <td>0.226087</td>\n",
+       "      <td>0.226087</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>EU_32019R0631_Title_0_Chapter_0_Section_0_Article_14</th>\n",
+       "      <td></td>\n",
+       "      <td>article 14\\r\\nadjustment of m0 and tm0 values\\...</td>\n",
+       "      <td>[start:0 stop:7 text:article tag_count:0, star...</td>\n",
+       "      <td>CURATION_FINISHED</td>\n",
+       "      <td>[Onerva, Fabian]</td>\n",
+       "      <td>[annotator:curation layer:Instrumenttypes type...</td>\n",
+       "      <td>[annotator:Onerva layer:Instrumenttypes type:I...</td>\n",
+       "      <td></td>\n",
+       "      <td></td>\n",
+       "      <td></td>\n",
+       "      <td></td>\n",
+       "      <td>[annotator:Fabian layer:Policydesigncharacteri...</td>\n",
+       "      <td>0.000000</td>\n",
+       "      <td>0.344725</td>\n",
+       "      <td>0.451613</td>\n",
+       "      <td>0.451613</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "                                                   Policy  \\\n",
+       "EU_32006L0032_Title_0_Chapter_1_Section_0_Artic...          \n",
+       "EU_32006L0066_Title_0_Chapter_0_Section_0_Artic...          \n",
+       "EU_32009L0028_Title_0_Chapter_0_Section_0_Artic...          \n",
+       "EU_32019L0944_Title_0_Chapter_6_Section_3_Artic...          \n",
+       "EU_32019R0631_Title_0_Chapter_0_Section_0_Artic...          \n",
+       "\n",
+       "                                                                                                 Text  \\\n",
+       "EU_32006L0032_Title_0_Chapter_1_Section_0_Artic...  article 3\\r\\ndefinitions\\r\\nfor the purposes o...   \n",
+       "EU_32006L0066_Title_0_Chapter_0_Section_0_Artic...  article 25\\r\\npenalties\\r\\nmember states shall...   \n",
+       "EU_32009L0028_Title_0_Chapter_0_Section_0_Artic...  article 7\\r\\njoint projects between member sta...   \n",
+       "EU_32019L0944_Title_0_Chapter_6_Section_3_Artic...  article 47\\r\\nindependence of the transmission...   \n",
+       "EU_32019R0631_Title_0_Chapter_0_Section_0_Artic...  article 14\\r\\nadjustment of m0 and tm0 values\\...   \n",
+       "\n",
+       "                                                                                               Tokens  \\\n",
+       "EU_32006L0032_Title_0_Chapter_1_Section_0_Artic...  [start:0 stop:7 text:article tag_count:0, star...   \n",
+       "EU_32006L0066_Title_0_Chapter_0_Section_0_Artic...  [start:0 stop:7 text:article tag_count:0, star...   \n",
+       "EU_32009L0028_Title_0_Chapter_0_Section_0_Artic...  [start:0 stop:7 text:article tag_count:0, star...   \n",
+       "EU_32019L0944_Title_0_Chapter_6_Section_3_Artic...  [start:0 stop:7 text:article tag_count:0, star...   \n",
+       "EU_32019R0631_Title_0_Chapter_0_Section_0_Artic...  [start:0 stop:7 text:article tag_count:0, star...   \n",
+       "\n",
+       "                                                        Article_State  \\\n",
+       "EU_32006L0032_Title_0_Chapter_1_Section_0_Artic...  CURATION_FINISHED   \n",
+       "EU_32006L0066_Title_0_Chapter_0_Section_0_Artic...  CURATION_FINISHED   \n",
+       "EU_32009L0028_Title_0_Chapter_0_Section_0_Artic...  CURATION_FINISHED   \n",
+       "EU_32019L0944_Title_0_Chapter_6_Section_3_Artic...  CURATION_FINISHED   \n",
+       "EU_32019R0631_Title_0_Chapter_0_Section_0_Artic...  CURATION_FINISHED   \n",
+       "\n",
+       "                                                   Finished_Annotators  \\\n",
+       "EU_32006L0032_Title_0_Chapter_1_Section_0_Artic...     [Fride, Onerva]   \n",
+       "EU_32006L0066_Title_0_Chapter_0_Section_0_Artic...     [Fride, Onerva]   \n",
+       "EU_32009L0028_Title_0_Chapter_0_Section_0_Artic...    [Alisha, Fabian]   \n",
+       "EU_32019L0944_Title_0_Chapter_6_Section_3_Artic...    [Alisha, Onerva]   \n",
+       "EU_32019R0631_Title_0_Chapter_0_Section_0_Artic...    [Onerva, Fabian]   \n",
+       "\n",
+       "                                                                                             Curation  \\\n",
+       "EU_32006L0032_Title_0_Chapter_1_Section_0_Artic...  [annotator:curation layer:Instrumenttypes type...   \n",
+       "EU_32006L0066_Title_0_Chapter_0_Section_0_Artic...  [annotator:curation layer:Instrumenttypes type...   \n",
+       "EU_32009L0028_Title_0_Chapter_0_Section_0_Artic...  [annotator:curation layer:Policydesigncharacte...   \n",
+       "EU_32019L0944_Title_0_Chapter_6_Section_3_Artic...  [annotator:curation layer:Instrumenttypes type...   \n",
+       "EU_32019R0631_Title_0_Chapter_0_Section_0_Artic...  [annotator:curation layer:Instrumenttypes type...   \n",
+       "\n",
+       "                                                                                               Onerva  \\\n",
+       "EU_32006L0032_Title_0_Chapter_1_Section_0_Artic...  [annotator:Onerva layer:Instrumenttypes type:I...   \n",
+       "EU_32006L0066_Title_0_Chapter_0_Section_0_Artic...  [annotator:Onerva layer:Instrumenttypes type:I...   \n",
+       "EU_32009L0028_Title_0_Chapter_0_Section_0_Artic...                                                 []   \n",
+       "EU_32019L0944_Title_0_Chapter_6_Section_3_Artic...  [annotator:Onerva layer:Instrumenttypes type:I...   \n",
+       "EU_32019R0631_Title_0_Chapter_0_Section_0_Artic...  [annotator:Onerva layer:Instrumenttypes type:I...   \n",
+       "\n",
+       "                                                                                                Fride  \\\n",
+       "EU_32006L0032_Title_0_Chapter_1_Section_0_Artic...  [annotator:Fride layer:Instrumenttypes type:In...   \n",
+       "EU_32006L0066_Title_0_Chapter_0_Section_0_Artic...  [annotator:Fride layer:Instrumenttypes type:In...   \n",
+       "EU_32009L0028_Title_0_Chapter_0_Section_0_Artic...                                                      \n",
+       "EU_32019L0944_Title_0_Chapter_6_Section_3_Artic...                                                      \n",
+       "EU_32019R0631_Title_0_Chapter_0_Section_0_Artic...                                                      \n",
+       "\n",
+       "                                                   Lynn Sebastian  \\\n",
+       "EU_32006L0032_Title_0_Chapter_1_Section_0_Artic...                  \n",
+       "EU_32006L0066_Title_0_Chapter_0_Section_0_Artic...   []             \n",
+       "EU_32009L0028_Title_0_Chapter_0_Section_0_Artic...             []   \n",
+       "EU_32019L0944_Title_0_Chapter_6_Section_3_Artic...                  \n",
+       "EU_32019R0631_Title_0_Chapter_0_Section_0_Artic...                  \n",
+       "\n",
+       "                                                                                               Alisha  \\\n",
+       "EU_32006L0032_Title_0_Chapter_1_Section_0_Artic...                                                      \n",
+       "EU_32006L0066_Title_0_Chapter_0_Section_0_Artic...                                                      \n",
+       "EU_32009L0028_Title_0_Chapter_0_Section_0_Artic...  [annotator:Alisha layer:Policydesigncharacteri...   \n",
+       "EU_32019L0944_Title_0_Chapter_6_Section_3_Artic...  [annotator:Alisha layer:Instrumenttypes type:I...   \n",
+       "EU_32019R0631_Title_0_Chapter_0_Section_0_Artic...                                                      \n",
+       "\n",
+       "                                                                                               Fabian  \\\n",
+       "EU_32006L0032_Title_0_Chapter_1_Section_0_Artic...                                                      \n",
+       "EU_32006L0066_Title_0_Chapter_0_Section_0_Artic...                                                      \n",
+       "EU_32009L0028_Title_0_Chapter_0_Section_0_Artic...  [annotator:Fabian layer:Policydesigncharacteri...   \n",
+       "EU_32019L0944_Title_0_Chapter_6_Section_3_Artic...                                                      \n",
+       "EU_32019R0631_Title_0_Chapter_0_Section_0_Artic...  [annotator:Fabian layer:Policydesigncharacteri...   \n",
+       "\n",
+       "                                                    f1_exact_score  \\\n",
+       "EU_32006L0032_Title_0_Chapter_1_Section_0_Artic...        0.373418   \n",
+       "EU_32006L0066_Title_0_Chapter_0_Section_0_Artic...        0.740741   \n",
+       "EU_32009L0028_Title_0_Chapter_0_Section_0_Artic...        0.382979   \n",
+       "EU_32019L0944_Title_0_Chapter_6_Section_3_Artic...        0.191304   \n",
+       "EU_32019R0631_Title_0_Chapter_0_Section_0_Artic...        0.000000   \n",
+       "\n",
+       "                                                    f1_tokenwise_score  \\\n",
+       "EU_32006L0032_Title_0_Chapter_1_Section_0_Artic...            0.415289   \n",
+       "EU_32006L0066_Title_0_Chapter_0_Section_0_Artic...            0.625000   \n",
+       "EU_32009L0028_Title_0_Chapter_0_Section_0_Artic...            0.345238   \n",
+       "EU_32019L0944_Title_0_Chapter_6_Section_3_Artic...            0.176783   \n",
+       "EU_32019R0631_Title_0_Chapter_0_Section_0_Artic...            0.344725   \n",
+       "\n",
+       "                                                    f1_partial_score  \\\n",
+       "EU_32006L0032_Title_0_Chapter_1_Section_0_Artic...          0.544304   \n",
+       "EU_32006L0066_Title_0_Chapter_0_Section_0_Artic...          0.740741   \n",
+       "EU_32009L0028_Title_0_Chapter_0_Section_0_Artic...          0.425532   \n",
+       "EU_32019L0944_Title_0_Chapter_6_Section_3_Artic...          0.226087   \n",
+       "EU_32019R0631_Title_0_Chapter_0_Section_0_Artic...          0.451613   \n",
+       "\n",
+       "                                                    f1_heuristic_score  \n",
+       "EU_32006L0032_Title_0_Chapter_1_Section_0_Artic...            0.566417  \n",
+       "EU_32006L0066_Title_0_Chapter_0_Section_0_Artic...            0.740741  \n",
+       "EU_32009L0028_Title_0_Chapter_0_Section_0_Artic...            0.425532  \n",
+       "EU_32019L0944_Title_0_Chapter_6_Section_3_Artic...            0.226087  \n",
+       "EU_32019R0631_Title_0_Chapter_0_Section_0_Artic...            0.451613  "
+      ]
+     },
+     "execution_count": 7,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "test_evaluator.df.head()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Get total score"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "To retrieve the total score of the corpus, use get_total_score_df() on a dataframes where the scores for individual articles have been calculated."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "{'f1_exact_score': 0.24962194821446082,\n",
+       " 'f1_tokenwise_score': 0.23386478587348017,\n",
+       " 'f1_partial_score': 0.3145298761379569,\n",
+       " 'f1_heuristic_score': 0.3231179223979569}"
+      ]
+     },
+     "execution_count": 8,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "test_evaluator.get_total_score_df()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "if only specific scores are required:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 9,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "{'f1_exact_score': 0.24962194821446082}"
+      ]
+     },
+     "execution_count": 9,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "test_evaluator.get_total_score_df('f1_exact_score')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "or"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "{'f1_exact_score': 0.24962194821446082,\n",
+       " 'f1_tokenwise_score': 0.23386478587348017}"
+      ]
+     },
+     "execution_count": 10,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "test_evaluator.get_total_score_df(['f1_exact_score', 'f1_tokenwise_score'])"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Get total score per annotator"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 13,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "{'f1_exact_score': 0.4420954808109599,\n",
+       " 'f1_tokenwise_score': 0.41871223291621384,\n",
+       " 'f1_partial_score': 0.5540782020100747,\n",
+       " 'f1_heuristic_score': 0.5717870000010115}"
+      ]
+     },
+     "execution_count": 13,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "test_evaluator.get_score_annotator('Fride')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "{'f1_exact_score': 0.4420954808109599,\n",
+       " 'f1_tokenwise_score': 0.41871223291621384}"
+      ]
+     },
+     "execution_count": 14,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "test_evaluator.get_score_annotator('Fride', ['f1_exact_score', 'f1_tokenwise_score'] )"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Get total score based on a spanlist"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "The inter annotator agreement score can be also calculated from a spanlist. For all the spans present, it calculates the inter agreement scores for alle the articls with at least two valid annoations. Can be used to caluclate simmilarity to curation."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 16,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "test_dir = repository.from_repository_name('EU_32006L0032_Title_0_Chapter_1_Section_0_Article_03')\n",
+    "span_list = test_evaluator_debug.get_span_list(test_dir, ['Onerva', 'Fride'])"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 17,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "0.5664166174246597"
+      ]
+     },
+     "execution_count": 17,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "test_evaluator_debug.get_score_spanlist(span_list, 'f1_heuristic')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 18,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "span_list_Onerva_cur = test_evaluator_debug.get_span_list(test_dir, ['Curation', 'Fride'])\n",
+    "span_list_Fride_cur = test_evaluator_debug.get_span_list(test_dir, ['Curation', 'Onerva'])"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 19,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "0.7911308736930657"
+      ]
+     },
+     "execution_count": 19,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "test_evaluator_debug.get_score_spanlist(span_list_Onerva_cur, 'f1_heuristic')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 20,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "0.6940756370719039"
+      ]
+     },
+     "execution_count": 20,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "test_evaluator_debug.get_score_spanlist(span_list_Fride_cur, 'f1_heuristic')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "row = test_evaluator.df.loc['EU_32013R0525_Title_0_Chapter_1_Section_0_Article_03']\n",
+    "annotations = row[df_annotation_marker:]\n",
+    "annotations\n",
+    "valid_annotations = keep_valid_anotations(annotations)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 9,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "rep =  repository.from_repository_name('EU_32013R0525_Title_0_Chapter_1_Section_0_Article_03')\n",
+    "tag_list_2 = test_evaluator.get_span_list(rep, columns='annotators')\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 13,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "140"
+      ]
+     },
+     "execution_count": 13,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "len(tag_list_2)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 12,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "140"
+      ]
+     },
+     "execution_count": 12,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "len(tag_list_1)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "interpreter": {
+   "hash": "f1357e5d6940800ae93a3fd23162ea93a77a6c89f02c68504dcfa719d1ffeee2"
+  },
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.7.10"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 4
+}
