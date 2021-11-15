@@ -4,7 +4,7 @@ from definitions import df_annotation_marker
 
 class Corpus:
     
-    def __init__(self, df):
+    def __init__(self, df, front_and_whereas = False):
         """
         
     Corpus Statistics
@@ -15,7 +15,11 @@ class Corpus:
     
         
         """
+        #if front_and_whereas == False:
+
+
         self.df = df
+
 
     def _get_iterator_all(self, columns): 
 
@@ -286,3 +290,37 @@ class Corpus:
 
         token_list = self.get_token_list_from_repository(conditional_rep)
         return [tok for tok in token_list if tok.tag_count == label_count]
+    
+    def keep_only_finished_articles(self):
+
+        """
+        Keeps only the articles whith article_state 'Curation Finished' and at least two annotators.
+
+        All the other articles are stored in a second dataframe 'df_non_curated'-
+                
+        Parameters
+        ----------
+        None
+
+        """
+        self.df_non_curated = self.df[self.df['Article_State'] !='CURATION_FINISHED']
+        self.df = self.df[self.df.apply(lambda x: len(x['Finished_Annotators']) >=2 and x['Article_State'] =='CURATION_FINISHED',axis=1)]
+ 
+
+    def drop_articles_based_on_string(self, matching_strings):
+
+        """
+        Drops articles matching the string or the strings given in 'matching_string. 
+        ----------
+        string: string or string list
+
+        """
+        if isinstance(matching_strings, str):
+            self.df.drop(self.df.filter(like=matching_strings, axis=0).index, inplace=True)
+
+        elif isinstance(matching_strings, list):
+            for matching_string in matching_strings:
+                self.df.drop(self.df.filter(like=matching_string, axis=0).index, inplace=True)
+    
+        else:
+            raise ValueError('The argument string should either be a string or a list')

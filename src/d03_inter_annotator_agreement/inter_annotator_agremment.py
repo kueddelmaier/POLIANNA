@@ -110,13 +110,8 @@ class Inter_Annotator_Agreement(Corpus):
         
         self.annotators = list(self.df.columns[df_annotation_marker:])
 
-    def keep_only_finished_articles(self):
-        self.df_non_curated = self.df[self.df['Article_State'] !='CURATION_FINISHED']
-        self.df = self.df[self.df.apply(lambda x: len(x['Finished_Annotators']) >=2 and x['Article_State'] =='CURATION_FINISHED',axis=1)]
-        #self.df = self.df[self.df['Article_State'] =='CURATION_FINISHED']
 
 
-        
 
     def append_total_score_per_article_parallel(self, scoring_metrics, append_to_df = False, weight_by_tokens = True, **optional_tuple_properties):
 
