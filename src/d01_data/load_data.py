@@ -211,7 +211,7 @@ for subdir in curation_subdirs:
                     for span_token in span_tokens:
                         span_token.tag_count +=1
                     
-                    spanlist.append(span(category, type_, _tag_ , start ,stop , sentence[start:stop], span_tokens, rep, 'curation'))
+                    spanlist.append(span(category, type_, _tag_ , start ,stop , sentence[start:stop], span_tokens, rep, 'Curation'))
                     
         stat_df['Curation'].loc[subdir_index] = spanlist     
 #stat_df['tokens cleaned'] = stat_df['Text'].apply(clean_text)  

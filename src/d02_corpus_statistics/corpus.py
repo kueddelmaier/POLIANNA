@@ -1,6 +1,11 @@
 from itertools import chain
 import collections
 from definitions import df_annotation_marker
+import pandas as pd
+
+def add_sent(obj, sentence):
+    obj.rep.sentence = sentence
+    return obj
 
 class Corpus:
     
@@ -324,3 +329,69 @@ class Corpus:
     
         else:
             raise ValueError('The argument string should either be a string or a list')
+    
+    
+class Sent_Corpus(Corpus):
+
+    def __init__(self, stat_df, front_and_whereas = False):
+
+        self.df = pd.DataFrame(columns = stat_df.columns)
+        self.df = self.df.rename(columns={'Policy':'Sentence'})
+
+        from nltk.data import load
+        language="english"
+
+        tokenizer = load(f"tokenizers/punkt/{language}.pickle")
+
+        annotators = stat_df.columns[df_annotation_marker:]
+
+        ## change: also add correct sentence for all the tags involved,
+        #finish add sentence method
+
+        for row_index, stat_df_row in stat_df.iterrows():
+            
+            raw_text = stat_df_row["Text"]
+
+            tokens = stat_df_row["Tokens"]
+            article_state = stat_df_row["Article_State"]
+            finished_annotators = stat_df_row["Finished_Annotators"]
+            cur_spans = stat_df_row["Curation"]
+            
+            sent_tuples = tokenizer.span_tokenize(raw_text, realign_boundaries = True)
+            
+            i = 0
+            for start, stop in sent_tuples:
+                sentence = 'Sentence_{}'.format(str(i))
+                
+                row = pd.Series(index=self.df.columns, dtype = object)
+                
+                row["Sentence"] = stat_df_row.name +'_Sentence_{}'.format(str(i))
+                row["Text"] = raw_text[start: stop]
+                sent_tokens = [add_sent(tok,sentence) for tok in tokens if tok.start >= start and tok.stop <= stop]
+                row["Tokens"] = sent_tokens
+                row["Article_State"] = article_state
+                row["Finished_Annotators"] = finished_annotators
+                
+                if type(cur_spans) == list:
+                    row["Curation"]= [spn for spn in cur_spans if spn.start >= start and spn.stop <= stop]
+                else:
+                    row["Curation"] = ''
+                
+                for annotator in annotators:
+                    
+                    if annotator in finished_annotators and type(stat_df_row[annotator]) == list:
+                        row[annotator] = [add_sent(spn,sentence) for spn in stat_df_row[annotator] if spn.start >= start and spn.stop <= stop]
+                        
+                    else:
+                        row[annotator] = ''
+                    
+                self.df = self.df.append(row, ignore_index=True)
+                i +=1
+
+
+
+        
+
+    
+
+

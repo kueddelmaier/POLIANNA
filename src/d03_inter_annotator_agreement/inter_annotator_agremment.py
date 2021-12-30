@@ -115,7 +115,7 @@ class Inter_Annotator_Agreement(Corpus):
 
     def append_total_score_per_article_parallel(self, scoring_metrics, append_to_df = False, weight_by_tokens = True, **optional_tuple_properties):
 
-        pandarallel.initialize( progress_bar = True)
+        pandarallel.initialize(progress_bar = True)
 
         for scoring_metric in scoring_metrics:
             

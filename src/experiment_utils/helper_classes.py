@@ -4,16 +4,18 @@ def getOverlap(a, b):
     return max(0, min(a[1], b[1]) - max(a[0], b[0]))
 
 class repository: 
-    def __init__(self, policy = None, title = None, chapter = None, section = None, article = None):
+    def __init__(self, policy = None, title = None, chapter = None, section = None, article = None, sentence = None):
         self.policy = policy
         self.title = title
         self.chapter = chapter
         self.section = section
         self.article = article
+        self.sentence = sentence
+        
         
         
     def __repr__(self): #how to print the repository to the console
-        return 'policy:' + str(self.policy) + ' title:' + str(self.title) + ' chapter:' + str(self.chapter) + ' section:' + str(self.section) + ' article:' + str(self.article)          
+        return 'policy:' + str(self.policy) + ' title:' + str(self.title) + ' chapter:' + str(self.chapter) + ' section:' + str(self.section) + ' article:' + str(self.article) + ' sentence:' + str(self.sentence)         
    
     def __eq__(self, other):
         return self.policy == other.policy and self.title == other.title and self.chapter == other.chapter and self.section == other.section and self.article == other.article
