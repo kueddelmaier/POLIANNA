@@ -7,7 +7,7 @@ import pandas as pd
 from definitions import df_annotation_marker
 from pandarallel import pandarallel
 from tqdm import tqdm
-from src.d02_corpus_statistics.corpus import Corpus
+from src.d02_corpus_statistics.corpus import Corpus, Sent_Corpus
 from src.d03_inter_annotator_agreement.scoring_functions import (
     check_symmetric, create_scoring_matrix, scoring_metrics, unified_gamma, f1_heuristic)
 from src.d03_inter_annotator_agreement.span_matching import matching_methods
@@ -254,6 +254,8 @@ class Inter_Annotator_Agreement(Corpus):
     
     
 
+class Sent_Inter_Annotator_Agreement(Sent_Corpus, Inter_Annotator_Agreement):
+    pass
 
 
 
