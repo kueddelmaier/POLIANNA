@@ -2,6 +2,7 @@ from itertools import chain
 import collections
 from definitions import df_annotation_marker
 import pandas as pd
+import copy
 
 def add_sent(obj, sentence):
     obj.rep.sentence = sentence
@@ -329,13 +330,20 @@ class Corpus:
     
         else:
             raise ValueError('The argument string should either be a string or a list')
-    
+
     
 class Sent_Corpus(Corpus):
 
     def __init__(self, stat_df, front_and_whereas = False):
 
-        self.df = pd.DataFrame(columns = stat_df.columns)
+
+        global_index = 0
+
+        cols = list(stat_df.columns)
+        cols.append("Sentence_Start")
+        cols.append("Sentence_Stop")
+
+        self.df = pd.DataFrame(columns = cols)
         self.df = self.df.rename(columns={'Policy':'Sentence'})
 
         from nltk.data import load
@@ -360,33 +368,47 @@ class Sent_Corpus(Corpus):
             sent_tuples = tokenizer.span_tokenize(raw_text, realign_boundaries = True)
             
             i = 0
+
             for start, stop in sent_tuples:
                 sentence = 'Sentence_{}'.format(str(i))
                 
                 row = pd.Series(index=self.df.columns, dtype = object)
+
+                row["Sentence_Start"] = start
+                row["Sentence_Stop"] = stop
                 
                 row["Sentence"] = stat_df_row.name +'_Sentence_{}'.format(str(i))
                 row["Text"] = raw_text[start: stop]
-                sent_tokens = [add_sent(tok,sentence) for tok in tokens if tok.start >= start and tok.stop <= stop]
-                row["Tokens"] = sent_tokens
+
+                sent_tokens = [tok for tok in tokens if tok.start >= start and tok.stop <= stop] # do it in two lines since doing it in one line would affect all the previous tokens of the same article
+                sent_tokens_copy= copy.deepcopy(sent_tokens)  
+                row["Tokens"] = [add_sent(tok,sentence) for tok in sent_tokens_copy]
+
+
                 row["Article_State"] = article_state
                 row["Finished_Annotators"] = finished_annotators
                 
                 if type(cur_spans) == list:
-                    row["Curation"]= [spn for spn in cur_spans if spn.start >= start and spn.stop <= stop]
+                    cur_sent_spans = [spn for spn in cur_spans if spn.start >= start and spn.stop <= stop]
+                    cur_sent_spans_copy = copy.deepcopy(cur_sent_spans)
+                    row["Curation"]= [add_sent(spn,sentence) for spn in cur_sent_spans_copy]
+
                 else:
                     row["Curation"] = ''
                 
                 for annotator in annotators:
                     
                     if annotator in finished_annotators and type(stat_df_row[annotator]) == list:
-                        row[annotator] = [add_sent(spn,sentence) for spn in stat_df_row[annotator] if spn.start >= start and spn.stop <= stop]
+                        ann_sent_spans = [spn for spn in stat_df_row[annotator] if spn.start >= start and spn.stop <= stop]
+                        ann_sent_spans_copy = copy.deepcopy(ann_sent_spans)
+                        row[annotator] = [add_sent(spn,sentence) for spn in ann_sent_spans_copy]
                         
                     else:
                         row[annotator] = ''
                     
                 self.df = self.df.append(row, ignore_index=True)
                 i +=1
+                global_index +=1
 
 
 
