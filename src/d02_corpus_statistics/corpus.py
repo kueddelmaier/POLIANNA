@@ -13,11 +13,11 @@ class Corpus:
     def __init__(self, df, front_and_whereas = False):
         """
         
-    Corpus Statistics
-    Parameters
-    ----------
-    Dataframe :
-        Dataframe where each column represents a article
+        Corpus Statistics
+        Parameters
+        ----------
+        Dataframe :
+            Dataframe where each column represents a article
     
         
         """

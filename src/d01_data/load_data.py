@@ -13,14 +13,11 @@ import numpy as np
 import collections
 sys.path.append('/home/kueddelmaier/eth/work/NLP_spark/src')
 from src.experiment_utils.helper_classes import token, span, repository
-from definitions import ROOT_DIR
+from definitions import ROOT_DIR, RAW_DATA_PATH
 
 
-data_path = os.path.join(ROOT_DIR,'data/annotator_data/')
-
-
-annotator_path = os.path.join(data_path , 'annotation')  
-curation_path = os.path.join(data_path , 'curation') 
+annotator_path = os.path.join(RAW_DATA_PATH , 'annotation')  
+curation_path = os.path.join(RAW_DATA_PATH , 'curation') 
 
 
 
@@ -32,7 +29,7 @@ error_span_list = []
 annotator_subdirs = [o for o in os.listdir(annotator_path) if os.path.isdir(annotator_path)]
 curation_subdirs = [o for o in os.listdir(curation_path) if os.path.isdir(curation_path)]
 
-json_files_dir = [file for file in os.listdir(data_path) if file.endswith('.json')]
+json_files_dir = [file for file in os.listdir(RAW_DATA_PATH) if file.endswith('.json')]
 
 if len(json_files_dir) != 1:
     for file in json_files_dir:
@@ -45,7 +42,7 @@ project_log = json_files_dir[0]
 # save state and finsihed coders in a dict
 
 article_state = {}
-with open(os.path.join(data_path, project_log)) as json_file:
+with open(os.path.join(RAW_DATA_PATH, project_log)) as json_file:
     article_state_data = json.load(json_file)
     for article in article_state_data['source_documents']:
 
@@ -220,7 +217,21 @@ for subdir in curation_subdirs:
 
 #%%
 stat_df = stat_df.replace(np.nan, '')
-out_dir = os.path.join(ROOT_DIR,'data/02_processed_to_dataframe', 'preprocessed_dataframe.pkl')
-stat_df.to_pickle(out_dir)
+
+#create data_dir
+
+data_dir = os.path.join(ROOT_DIR, 'data')
+
+if not os.path.exists(data_dir):
+    os.makedirs(data_dir)
+
+
+processed_data_dir = os.path.join(data_dir,'02_processed_to_dataframe')
+
+if not os.path.exists(processed_data_dir):
+    os.makedirs(processed_data_dir)
+
+out_dir_pkl = os.path.join(ROOT_DIR,'data/02_processed_to_dataframe', 'preprocessed_dataframe.pkl')
+stat_df.to_pickle(out_dir_pkl)
 out_dir_csv = os.path.join(ROOT_DIR,'data/02_processed_to_dataframe', 'preprocessed_dataframe.csv')
 stat_df.to_csv(out_dir_csv)

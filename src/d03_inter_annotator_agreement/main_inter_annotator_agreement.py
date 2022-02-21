@@ -11,9 +11,7 @@ from src.experiment_utils.helper_classes import token, span, repository
 from definitions import ROOT_DIR
 from src.d03_inter_annotator_agreement.inter_annotator_agremment import Inter_Annotator_Agreement
 
-
 DEBUG = True
-
 
 def main():
 
