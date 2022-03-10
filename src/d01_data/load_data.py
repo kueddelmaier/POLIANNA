@@ -11,7 +11,8 @@ from itertools import groupby
 import unicodedata
 import numpy as np
 import collections
-sys.path.append('/home/kueddelmaier/eth/work/NLP_spark/src')
+#sys.path.append('/home/kueddelmaier/eth/work/NLP_spark/src')
+sys.path.append('/Users/l.kaack/Documents/Policy_coding/NLP_Spark/')
 from src.experiment_utils.helper_classes import token, span, repository
 from definitions import ROOT_DIR, RAW_DATA_PATH
 
