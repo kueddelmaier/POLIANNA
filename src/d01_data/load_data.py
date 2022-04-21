@@ -145,10 +145,7 @@ for subdir in annotator_subdirs:
                         len_doubles = len([dspan for dspan in spanlist if dspan.tag_ == _tag_ and dspan.start == start and dspan.stop == stop])
                         if len_doubles != 0:
                             continue
-
-                        for span_token in span_tokens:
-                            span_token.tag_count +=1
-                        
+         
                         spanlist.append(span(category, type_, _tag_ , start ,stop , sentence[start:stop], span_tokens, rep, annotator))
             stat_df[annotator].loc[subdir_index] = spanlist
             annotator_count +=1   

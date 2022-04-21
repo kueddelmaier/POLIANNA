@@ -15,10 +15,10 @@ class repository:
         
         
     def __repr__(self): #how to print the repository to the console
-        return 'policy:' + str(self.policy) + ' title:' + str(self.title) + ' chapter:' + str(self.chapter) + ' section:' + str(self.section) + ' article:' + str(self.article) + ' sentence:' + str(self.sentence)         
+        return 'policy:' + str(self.policy) + ' title:' + str(self.title) + ' chapter:' + str(self.chapter) + ' section:' + str(self.section) + ' article:' + str(self.article) + (' sentence:' + str(self.sentence) if self.sentence != None else '')         
    
     def __eq__(self, other):
-        return self.policy == other.policy and self.title == other.title and self.chapter == other.chapter and self.section == other.section and self.article == other.article
+        return self.policy == other.policy and self.title == other.title and self.chapter == other.chapter and self.section == other.section and self.article == other.article and self.sentence == self.sentence
 
     def __hash__(self):
         return hash(self.__repr__())
@@ -33,19 +33,25 @@ class repository:
             chapter = None
             section = None
             article = None
+            sentence = None
         else:
             title = folder_parts[2] + '_' + folder_parts[3]
             chapter = folder_parts[4] + '_' + folder_parts[5]
             section = folder_parts[6] + '_' + folder_parts[7]
             article = folder_parts[8] + '_' + folder_parts[9]
+            
+
+            if len(folder_parts) == 12:
+                sentence = folder_parts[10] + '_' + folder_parts[11]
+            else:
+                sentence = None
         
-        return cls(policy,title, chapter, section, article)  #return a repository with the previously defined attributes
+        return cls(policy,title, chapter, section, article, sentence)  #return a repository with the previously defined attributes
     
     def match(self, other):            #checks if the search-criteria defined in repository 'other' is matching the the current repository                                                
         self_value_set = set([x for x in list(self.__dict__.values()) if x != None]) #creates a set of all the attributes ignoring 'None'    
         other_value_set = set([x for x in list(other.__dict__.values()) if x != None])
         
-
         return set(other_value_set).issubset(self_value_set) #returns True if the attributes of the search-criteria is a subset of the attributes of the current directory (=match)
     
 class token:

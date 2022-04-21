@@ -21,10 +21,14 @@ class Corpus:
     
         
         """
-        #if front_and_whereas == False:
+        self.df = copy.deepcopy(df)
+
+        if front_and_whereas == False:
+            for matching_string in ['front', 'Whereas']:
+                self.df.drop(self.df.filter(like=matching_string, axis=0).index, inplace=True)
 
 
-        self.df = df
+        
 
 
     def _get_iterator_all(self, columns): 
@@ -192,7 +196,7 @@ class Corpus:
     def get_tokens_from_span_list(self, conditional_rep, columns = 'Curation', item = None, value = None):
 
         """
-        Returns a list of tokens based on a span list. 
+        Returns a set of tokens based on a span list. 
 
         Parameters
         ----------
@@ -208,7 +212,7 @@ class Corpus:
         """
 
         span_list = self.get_span_list(conditional_rep, columns, item, value)
-        return list(chain.from_iterable([x.tokens for x in span_list]))
+        return list(set(chain.from_iterable([x.tokens for x in span_list])))
 
 
     def get_token_count_from_span_list(self, conditional_rep, columns = 'Curation', item = None, value = None):
