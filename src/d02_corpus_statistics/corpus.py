@@ -64,7 +64,7 @@ class Corpus:
         return [x for x in iterator if type(x)!= str and x.rep.match(conditional_rep) == True]
         
         
-    def get_span_list(self, conditional_rep, columns = 'all', item = None, value = None):
+    def get_span_list(self, conditional_rep, columns = 'Curation', item = None, value = None):
         """
         Returns a list of spans based on a conditional repository and can be filtered by a item and corresponding value.
 
@@ -256,6 +256,25 @@ class Corpus:
         token_iterator = chain.from_iterable([x.tokens for x in span_list]) #retrieve all the tokens from the span list and create a iterator (since the list contains sublists)
         token_counter_dict = collections.Counter([x.text for x in token_iterator]) #get a list the text of the token, count the different elements and create a dict
         return dict(sorted(token_counter_dict.items(), key=lambda item: item[1], reverse=True))  #sort the dict by counts
+
+    def most_frequent_labeled_spans(self, conditional_rep, columns = 'Curation', item = None, value = None):
+    
+        """
+        Returns dict containing the most labeled spans in descending order based on a span list. 
+        Parameters
+        ----------
+        conditional_rep: repository
+        item: {'layer', 'type', 'tag}, optional
+            If item and value are not specified, no filter is applied and thus all the spans matching the conditional rep are returned.
+
+        value: string, optional
+            The value corresponding to the desired 'layer', 'type' or 'tag'.
+            E.g item = 'layer' and value = 'Policydesigncharacteristics' or item = 'type and value ='Compliance' and item = 'tag' and value = 'Form_monitoring'.
+        """
+        span_list = self.get_span_list(conditional_rep, columns, item, value) #get the spanlist of all the span that match search criteria
+        span_iterator = [x.text for x in span_list] #retrieve all the span text from the span list
+        span_counter_dict = collections.Counter(span_iterator) # count the different elements (spans) and create a dict
+        return dict(sorted(span_counter_dict.items(), key=lambda item: item[1], reverse=True))  #sort the dict by counts
 
 
     def get_label_count_per_token_distro(self, conditional_rep, return_format = 'dict'):
