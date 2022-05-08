@@ -58,6 +58,9 @@ def _get_score_article(span_list,  scoring_metric, finished_annotators, **option
     #annotators = set([span_.annotator for span_ in span_list])
     annotators = finished_annotators
 
+    if len(annotators) < 2:
+        raise ValueError('not two finished annotators found')
+
 
     if scoring_metric == 'pygamma':
         score = unified_gamma(span_list, **optional_tuple_properties)
@@ -101,7 +104,9 @@ def _get_score_article(span_list,  scoring_metric, finished_annotators, **option
 
 class Inter_Annotator_Agreement(Corpus):
    
-    def __init__(self, df, DEBUG = False):
+    def __init__(self, df, DEBUG = False, front_and_whereas = False):
+
+        super().__init__(df, front_and_whereas)
         
         if DEBUG:
             self.df = df[0:10]
@@ -172,13 +177,44 @@ class Inter_Annotator_Agreement(Corpus):
 
 
         score_dict = {}
-        total_n_tokens = len(list(chain.from_iterable(df_annotator['Tokens'])))
-
-        for score_col in columns:
-            score = df_annotator.apply(lambda x: len(x['Tokens']) * x[score_col] / total_n_tokens, axis=1).sum()
-            score_dict[score_col] = score
         
-        return score_dict
+
+        if weight_by == 'no_weighting':
+
+            for score_col in columns:
+        
+                score_dict[score_col] = df_annotator[score_col].mean()
+            
+            return score_dict
+
+        
+
+        if weight_by == 'Tokens':
+            total_n_tokens = len(list(chain.from_iterable(df_annotator['Tokens'])))
+
+            for score_col in columns:
+                score = df_annotator.apply(lambda x: len(x['Tokens']) * x[score_col] / total_n_tokens, axis=1).sum()
+                score_dict[score_col] = score
+            
+            return score_dict
+        
+        elif weight_by == 'Spans':
+
+            for score_col in columns:
+                score = df_annotator.apply(lambda x: len(list(chain.from_iterable(x['Finished_Annotators']))) * x[score_col], axis=1).sum()
+                total_n_spans = df_annotator.apply(lambda x: len(list(chain.from_iterable(x['Finished_Annotators']))), axis=1).sum()
+                score_dict[score_col] = score/total_n_spans
+            
+            return score_dict
+        
+        elif weight_by == 'Span_Tokens':
+    
+            raise NotImplementedError
+        
+        else:
+            raise ValueError('This weighting method is not valid!')
+
+
 
 
     def get_score_annotator(self, annotator, columns = 'all', weight_by_tokens = True):
