@@ -63,7 +63,13 @@ def _get_score_article(span_list,  scoring_metric, finished_annotators, **option
 
 
     if scoring_metric == 'pygamma':
-        score = unified_gamma(span_list, **optional_tuple_properties)
+
+        unique_annotators = len(set([span_.annotator for span_ in span_list])) # pygamma requires that both annotators have at least one span
+
+        if unique_annotators < 2:
+            score = 1 - unique_annotators #if either is no answer, the score is 1 if they agree, 0 otherwise
+        else:
+            score = unified_gamma(span_list, **optional_tuple_properties)
         return score
 
 
@@ -109,9 +115,7 @@ class Inter_Annotator_Agreement(Corpus):
         super().__init__(df, front_and_whereas)
         
         if DEBUG:
-            self.df = df[0:10]
-        else:
-            self.df = df
+            self.df = self.df[0:10]
         
         self.annotators = list(self.df.columns[df_annotation_marker:])
 
