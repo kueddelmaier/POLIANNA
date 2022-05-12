@@ -4,21 +4,20 @@ def getOverlap(a, b):
     return max(0, min(a[1], b[1]) - max(a[0], b[0]))
 
 class repository: 
-    def __init__(self, policy = None, title = None, chapter = None, section = None, article = None, sentence = None):
+    def __init__(self, policy = None, title = None, chapter = None, section = None, article = None, sentence = None, index_name = None):
         self.policy = policy
         self.title = title
         self.chapter = chapter
         self.section = section
         self.article = article
         self.sentence = sentence
-        
-        
-        
+        self.index_name = index_name # the name of the repository used by the dataframe as index
+
     def __repr__(self): #how to print the repository to the console
-        return 'policy:' + str(self.policy) + ' title:' + str(self.title) + ' chapter:' + str(self.chapter) + ' section:' + str(self.section) + ' article:' + str(self.article) + (' sentence:' + str(self.sentence) if self.sentence != None else '')         
+        return f"policy:{self.policy} title:{self.title} chapter:{self.chapter} section:{self.section} article:{self.article}" + f"sentence:{self.sentence}" if self.sentence != None else ''
    
     def __eq__(self, other):
-        return self.policy == other.policy and self.title == other.title and self.chapter == other.chapter and self.section == other.section and self.article == other.article and self.sentence == self.sentence
+        return self.index_name == other.policy and self.title == other.title and self.chapter == other.chapter and self.section == other.section and self.article == other.article and self.sentence == self.sentence
 
     def __hash__(self):
         return hash(self.__repr__())
@@ -28,6 +27,7 @@ class repository:
     def from_repository_name(cls, rep_str):                #2nd initializer that creates a repository object directly from a repository string e.g 'EU_32008R1099_Title_0_Chapter_0_Section_0_Article_03.txt'
         folder_parts = rep_str.split('_')                  #split the string at '_' into parts 
         policy = folder_parts[0] + '_' + folder_parts[1]   #we only want to split at every 2nd '_', so merge the 1. and 2., 3. and 4. again 
+        
         if folder_parts[2] in  ['front', 'Whereas']:       #exeption for the 'whereas' and 'front'
             title = folder_parts[2]
             chapter = None
@@ -46,7 +46,7 @@ class repository:
             else:
                 sentence = None
         
-        return cls(policy,title, chapter, section, article, sentence)  #return a repository with the previously defined attributes
+        return cls(policy,title, chapter, section, article, sentence, rep_str)  #return a repository with the previously defined attributes
     
     def match(self, other):            #checks if the search-criteria defined in repository 'other' is matching the the current repository                                                
         self_value_set = set([x for x in list(self.__dict__.values()) if x != None]) #creates a set of all the attributes ignoring 'None'    
@@ -63,11 +63,14 @@ class token:
         self.tag_count = tag_count
         
     def __repr__(self):
-        return 'start:' + str(self.start) + ' stop:' + str(self.stop) + ' text:' + self.text + ' tag_count:' + str(self.tag_count)
+        return f"start:{self.start} stop:{self.stop} text:{self.text} tag_count:{self.tag_count}"
+
+    def __hash__(self): # used to remove duplicates
+        return hash(self.__repr__())
         
-    
 class span:
-    def __init__(self, layer_ = None, type_ = None, tag_ = None, start = None, stop = None, text = None, tokens = None, rep = None, annotator = None):
+    def __init__(self, span_id = None, layer_ = None, type_ = None, tag_ = None, start = None, stop = None, text = None, tokens = None, rep = None, annotator = None):
+        self.span_id = span_id
         self.layer_ = layer_
         self.type_ = type_
         self.tag_ = tag_
@@ -78,20 +81,23 @@ class span:
         self.rep = rep
         self.annotator = annotator
 
-        
-        
+    
+    #def __del__(self):
+    #    print('Span ', self.span_id, ' was removed from the corpus')
+
     def __eq__(self, other): 
         if not isinstance(other, span):
-            # don't attempt to compare against unrelated types
+                # don't attempt to compare against unrelated types
             return NotImplemented
 
-        return self.annotator == other.annotator and self.layer_ == other.layer_ and self.type_ == other.type_ and self.tag_ == other.tag_ and self.start == other.start and self.stop == other.stop and self.rep == other.rep
+        return self.span_id == other.span_id
+
     
     def __repr__(self): #for debugging purpose, defines how object is printed
-        return "annotator:" + str(self.annotator) + " layer:" + str(self.layer_) + " type:" + str(self.type_) + " tag:" + str(self.tag_) + " start:" + str(self.start) + " stop:" + str(self.stop) + " text:" + str(self.text) + '\n' 
+        return f"span id:{self.span_id} annotator:{self.annotator} layer:{self.layer_} type:{self.type_} tag:{self.tag_} start:{self.start} stop:{self.stop} text:{self.text}"
 
     def __hash__(self):
-        return hash(str(self.annotator) + str(self.layer_) + str(self.type_) + str(self.tag_)  + str(self.start)  + str(self.stop) + str(self.text) ) * self.rep.__hash__()
+        return hash((self.annotator, self.layer_, self.type_, self.tag_, self.start, self.stop, self.text, self.rep.__hash__()))  #tags with identical properties and identical repo shoudl yield the same hash so they can be removed
 
     def get_start(self):
         return self.start

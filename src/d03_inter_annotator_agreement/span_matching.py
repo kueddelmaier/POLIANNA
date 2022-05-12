@@ -23,10 +23,16 @@ def create_tuples_pygamma(span_list, **dissimilarity_properties):
             else: #in case the unit is not empty, find the span in spanlist that corresponds to this unit
                 matches = [span_ for span_ in span_list if span_.annotator == n_tuple[0] and span_.tag_ == n_tuple[1].annotation and span_.start == n_tuple[1].segment.start and span_.stop == n_tuple[1].segment.end]
                 if len(matches) != 1:
+                    print('Matches:')
                     print(matches)
-                    print(span_list)
+                    print('-----------')
+                    print('Repository for those matches:')
                     print([t.rep for t in matches])
-                    raise ValueError('fuck')
+                    print('-----------')
+                    print('Total Span List:')
+                    print(span_list)
+    
+                    raise ValueError('More than 1 match found for the above matches in pygamma matching')
                     
                 tuple_span = matches[0] #list 'matches' only contains one element
             list_tuple.append(tuple_span)

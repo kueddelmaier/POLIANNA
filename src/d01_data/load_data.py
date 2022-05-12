@@ -11,6 +11,9 @@ from itertools import groupby
 import unicodedata
 import numpy as np
 import collections
+from string import ascii_uppercase
+import pdb
+
 sys.path.append('/home/kueddelmaier/eth/work/NLP_spark/src')
 from src.experiment_utils.helper_classes import token, span, repository
 from definitions import ROOT_DIR, RAW_DATA_PATH
@@ -19,10 +22,50 @@ from definitions import ROOT_DIR, RAW_DATA_PATH
 annotator_path = os.path.join(RAW_DATA_PATH , 'annotation')  
 curation_path = os.path.join(RAW_DATA_PATH , 'curation') 
 
+remove_doublicates = True
+
+
+def remove_span_doublicates(span_list):
+
+    hash_table = {}
+    for span_ in span_list:
+        hash_value = hash(span_)
+        if hash_value in hash_table:
+            del span_
+        else:
+            hash_table[hash_value] = span_
+        
+    ret = list(hash_table.values())
+
+    if len(ret) < len(span_list):
+        print('removed the following doublicates:')
+        print([x for x in span_list if x not in ret])
+    return ret
 
 
 stat_df = pd.DataFrame(columns = ['Policy', 'Text', 'Tokens', 'Article_State', 'Finished_Annotators', 'Curation'], dtype = object) #create the initial dataframe
 tagsets = ['Policydesigncharacteristics','Technologyandapplicationspecificity','Instrumenttypes']
+
+
+annotator_look_up = {
+    'Alisha': 'A',
+    'Fride': 'B',
+    'Onerva': 'C',
+    'Fabian': 'D',
+    'Lynn': 'E',
+    'Sebastian': 'F',
+    'Joel': 'G'
+}
+
+span_counter = {
+    'Alisha': 1,
+    'Fride': 1,
+    'Onerva': 1,
+    'Fabian': 1,
+    'Lynn': 1,
+    'Sebastian': 1,
+    'Joel': 1
+}
 
 error_span_list = []
 
@@ -73,11 +116,14 @@ for subdir in annotator_subdirs:
     
 
 
-    for annonator in os.listdir(os.path.join(annotator_path,subdir)):
+    for ann_folder in os.listdir(os.path.join(annotator_path,subdir)):
+        
+
+        
         
        
         try:
-            archive = zipfile.ZipFile(os.path.join(annotator_path,subdir, annonator), 'r') #decode compressed json in zip file
+            archive = zipfile.ZipFile(os.path.join(annotator_path,subdir, ann_folder), 'r') #decode compressed json in zip file
             files = archive.namelist()
 
             json_files = [file for file in files if file.endswith('json')]
@@ -91,6 +137,8 @@ for subdir in annotator_subdirs:
             json_file_byte_decode = json_file_byte.decode('utf8')    #decode to json
         
             data = json.loads(json_file_byte_decode)
+
+            ann_letter = annotator_look_up[annotator]
         
         except:
             print('hey')
@@ -120,6 +168,7 @@ for subdir in annotator_subdirs:
             else:
                 token_list = stat_df['Tokens'].loc[subdir_index]
             
+            span_count = 0
             for category in data['_views']['_InitialView']:  #loop trough the custom layers
     
                 if category in tagsets:
@@ -145,19 +194,25 @@ for subdir in annotator_subdirs:
                         len_doubles = len([dspan for dspan in spanlist if dspan.tag_ == _tag_ and dspan.start == start and dspan.stop == stop])
                         if len_doubles != 0:
                             continue
-         
-                        spanlist.append(span(category, type_, _tag_ , start ,stop , sentence[start:stop], span_tokens, rep, annotator))
-            stat_df[annotator].loc[subdir_index] = spanlist
+                        span_id =  ann_letter + str(span_counter[annotator])   
+                        spanlist.append(span(span_id, category, type_, _tag_ , start ,stop , sentence[start:stop], span_tokens, rep, annotator))
+
+
+
+                        span_counter[annotator] +=1
+            if remove_doublicates== True:
+                spanlist_clean = remove_span_doublicates(spanlist)
+                
+            stat_df[annotator].loc[subdir_index] = spanlist_clean
             annotator_count +=1   
             #stat_df = stat_df.append(pd.Series([subdir[0:-4], sentence ,spanlist, token_list], index=stat_df.columns ), ignore_index=True)     
     #stat_df['tokens cleaned'] = stat_df['Text'].apply(clean_text)  
 
-#%%
-
 
 #curation
 os.chdir(curation_path)
-
+ann_letter = 'CUR'
+cur_count = 0
 for subdir in curation_subdirs:
 
     subdir_index = subdir[0:-4]
@@ -204,12 +259,15 @@ for subdir in curation_subdirs:
                     
                     for span_token in span_tokens:
                         span_token.tag_count +=1
-                    
-                    spanlist.append(span(category, type_, _tag_ , start ,stop , sentence[start:stop], span_tokens, rep, 'Curation'))
-                    
-        stat_df['Curation'].loc[subdir_index] = spanlist     
-#stat_df['tokens cleaned'] = stat_df['Text'].apply(clean_text)  
+                    span_id =  ann_letter + str(cur_count)  
+                    spanlist.append(span(span_id, category, type_, _tag_ , start ,stop , sentence[start:stop], span_tokens, rep, 'Curation'))
+                    cur_count += 1
 
+        if remove_doublicates== True:
+            spanlist_clean = remove_span_doublicates(spanlist)
+
+        stat_df['Curation'].loc[subdir_index] = spanlist_clean     
+#stat_df['tokens cleaned'] = stat_df['Text'].apply(clean_text)  
 
 
 #%%

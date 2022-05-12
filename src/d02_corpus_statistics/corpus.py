@@ -1,5 +1,7 @@
 from itertools import chain
 import collections
+
+from jinja2 import pass_context
 from definitions import df_annotation_marker
 import pandas as pd
 import copy
@@ -7,6 +9,7 @@ import copy
 def add_sent(obj, sentence):
     obj.rep.sentence = sentence
     return obj
+
 
 class Corpus:
     
@@ -18,16 +21,15 @@ class Corpus:
         ----------
         Dataframe :
             Dataframe where each column represents a article
-    
         
         """
         self.df = copy.deepcopy(df)
+        self.annotators = list(set(chain.from_iterable(self.df['Finished_Annotators'])))
 
         if front_and_whereas == False:
             for matching_string in ['front', 'Whereas']:
                 self.df.drop(self.df.filter(like=matching_string, axis=0).index, inplace=True)
-
-
+        
         
 
 
@@ -353,6 +355,19 @@ class Corpus:
     
         else:
             raise ValueError('The argument string should either be a string or a list')
+        
+    def del_span(self, span_id, repo):
+
+            
+        target = [x for x in self.df.loc[repo.index_name]['Curation'] if x.span_id == span_id]
+
+        if len(target) == 0:
+            raise ValueError('element not found')
+            
+        elif len(target) > 1:
+            raise ValueError('more than one elemtn found')
+        else:
+            self.df.loc[repo.index_name]['Curation'].remove(target[0])
 
     
 class Sent_Corpus(Corpus):

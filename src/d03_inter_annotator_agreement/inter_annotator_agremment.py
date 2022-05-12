@@ -45,7 +45,19 @@ def row_to_span_list(row):
     annotations_flat = list(chain.from_iterable(annotations))
     return annotations_flat
 
+def cur_annotator_to_span_list(row, annotator):
+    annotations = row[['Curation', annotator]]
+    annotations_flat = list(chain.from_iterable(annotations))
+    return annotations_flat
 
+def _get_curation_annotator_score(spanlist, scoring_metrics, annotator,  **optional_tuple_properties):
+    score_array = np.zeros(len(scoring_metrics))
+
+    finished_annotators = ['Curation', annotator]
+    for i, scoring_metric in enumerate(scoring_metrics):
+
+        score_array[i] = _get_score_article(spanlist, scoring_metric, finished_annotators,  **optional_tuple_properties)
+    return score_array
 
 def _get_score_article(span_list,  scoring_metric, finished_annotators, **optional_tuple_properties):
     """
@@ -117,7 +129,10 @@ class Inter_Annotator_Agreement(Corpus):
         if DEBUG:
             self.df = self.df[0:10]
         
-        self.annotators = list(self.df.columns[df_annotation_marker:])
+        self.calculated_iaa_scores = []
+        self.calculated_curation_scores = []
+        
+        
 
 
 
@@ -147,24 +162,38 @@ class Inter_Annotator_Agreement(Corpus):
                 continue
 
             self.df[column_name] = self.df.progress_apply(lambda row: _get_score_article(row_to_span_list(row), scoring_metric, row['Finished_Annotators'],  **optional_tuple_properties), axis=1)
+        
+        score_col_names = ['_'.join([col, 'score']) for col in scoring_metrics]
+        self.calculated_iaa_scores = list(set(self.calculated_iaa_scores + score_col_names))
+    
+    def append_score_to_curation(self, scoring_metrics, **optional_tuple_properties):
+        # add if score alrewasdy in df then dont calculate
+        
+        tqdm.pandas()
+        for annotator in self.annotators:
+            column_name = '_'.join([annotator, 'to_curation'])
+
+            self.df[column_name] = self.df.progress_apply(lambda row: _get_curation_annotator_score(cur_annotator_to_span_list(row, annotator), scoring_metrics, annotator,  **optional_tuple_properties) if annotator in row['Finished_Annotators'] else '', axis=1)
+
+        self.calculated_curation_scores = list(set(self.calculated_curation_scores + scoring_metrics))
 
 
     def get_total_score_df(self, columns = 'all', annotator = 'all', weight_by = 'Tokens'):
-        
-        df_columns = self.df.columns
+        # if no score calculated yet, append score
+        #insert here
         
 
         if columns == 'all':
-            columns = [column for column in df_columns if 'score' in column]
+            columns = self.calculated_iaa_scores
 
         elif isinstance(columns, str):
-            if columns in df_columns:
+            if columns in self.df.columns:
                 columns = [columns]
             else:
                 raise ValueError('This score does not exist')
 
         elif isinstance(columns, list):
-            non_valid_scores = [x for x in columns if x not in df_columns]
+            non_valid_scores = [x for x in columns if x not in self.df.columns]
             if len(non_valid_scores) != 0:
                 raise ValueError(non_valid_scores, 'do not exist')
         else:
@@ -193,7 +222,7 @@ class Inter_Annotator_Agreement(Corpus):
 
         
 
-        if weight_by == 'Tokens':
+        elif weight_by == 'Tokens':
             total_n_tokens = len(list(chain.from_iterable(df_annotator['Tokens'])))
 
             for score_col in columns:
@@ -217,6 +246,39 @@ class Inter_Annotator_Agreement(Corpus):
         
         else:
             raise ValueError('This weighting method is not valid!')
+
+
+
+
+    def get_to_curation_score(self, weight_by = 'Tokens'):
+        score_dict = {}
+        for annotator in ['Onerva', 'Alisha', 'Fabian', 'Fride']:
+            row_name = '{}_to_curation'.format(annotator)
+        
+            df_annotator = self.df[self.df.apply(lambda x: annotator in x['Finished_Annotators'],axis=1)]
+
+            if weight_by == 'no_weighting':
+                scores = df_annotator[row_name].mean()
+                score_dict[annotator] = dict(zip(self.calculated_curation_scores, scores.T))
+
+            elif weight_by == 'Tokens':
+                total_n_tokens = len(list(chain.from_iterable(df_annotator['Tokens'])))
+                scores = df_annotator.apply(lambda x: len(x['Tokens']) * x[row_name] / total_n_tokens, axis=1).sum()
+                score_dict[annotator] = dict(zip(self.calculated_curation_scores, scores.T))
+
+            elif weight_by == 'Spans':
+                score = df_annotator.apply(lambda x: len(list(chain.from_iterable(x['Finished_Annotators']))) * x[row_name], axis=1).sum()
+                total_n_spans = df_annotator.apply(lambda x: len(list(chain.from_iterable(x['Finished_Annotators']))), axis=1).sum()
+                scores = score/total_n_spans
+                score_dict[annotator] = dict(zip(self.calculated_curation_scores, scores.T))
+            else:
+                raise ValueError('This weighting method is not valid!')
+            #define how dict is printed to column
+        
+        
+        return score_dict
+
+
 
 
 
