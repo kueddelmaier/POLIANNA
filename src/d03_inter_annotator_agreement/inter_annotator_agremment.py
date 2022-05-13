@@ -234,8 +234,8 @@ class Inter_Annotator_Agreement(Corpus):
         elif weight_by == 'Spans':
 
             for score_col in columns:
-                score = df_annotator.apply(lambda x: len(list(chain.from_iterable(x['Finished_Annotators']))) * x[score_col], axis=1).sum()
-                total_n_spans = df_annotator.apply(lambda x: len(list(chain.from_iterable(x['Finished_Annotators']))), axis=1).sum()
+                score = df_annotator.apply(lambda x: len(list(chain.from_iterable(x['Finished_Annotators']))) * x[score_col], axis=1).sum() #multiply len of spans by score
+                total_n_spans = df_annotator.apply(lambda x: len(list(chain.from_iterable(x['Finished_Annotators']))), axis=1).sum() # sum up all the spans of finished annotators
                 score_dict[score_col] = score/total_n_spans
             
             return score_dict
