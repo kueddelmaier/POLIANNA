@@ -14,11 +14,15 @@ class repository:
         self.index_name = index_name # the name of the repository used by the dataframe as index
 
     def __repr__(self): #how to print the repository to the console
-        return f"policy:{self.policy} title:{self.title} chapter:{self.chapter} section:{self.section} article:{self.article}" + f"sentence:{self.sentence}" if self.sentence != None else ''
+        return f"policy:{self.policy} title:{self.title} chapter:{self.chapter} section:{self.section} article:{self.article}" + (f"sentence:{self.sentence}" if self.sentence != None else '')
    
     def __eq__(self, other):
-        return self.index_name == other.policy and self.title == other.title and self.chapter == other.chapter and self.section == other.section and self.article == other.article and self.sentence == self.sentence
+        if isinstance(other, repository):
+            return self.policy == other.policy and self.title == other.title and self.chapter == other.chapter and self.section == other.section and self.article == other.article and self.sentence == self.sentence
+        return False
 
+        
+        
     def __hash__(self):
         return hash(self.__repr__())
 
@@ -86,11 +90,10 @@ class span:
     #    print('Span ', self.span_id, ' was removed from the corpus')
 
     def __eq__(self, other): 
-        if not isinstance(other, span):
+        if isinstance(other, span):
                 # don't attempt to compare against unrelated types
-            return NotImplemented
-
-        return self.span_id == other.span_id
+            return self.span_id == other.span_id
+        return False
 
     
     def __repr__(self): #for debugging purpose, defines how object is printed

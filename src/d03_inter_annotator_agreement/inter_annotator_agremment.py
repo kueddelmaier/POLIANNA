@@ -59,6 +59,22 @@ def _get_curation_annotator_score(spanlist, scoring_metrics, annotator,  **optio
         score_array[i] = _get_score_article(spanlist, scoring_metric, finished_annotators,  **optional_tuple_properties)
     return score_array
 
+def to_curation_colums(row):
+    """
+    Returns all the annotator-to-curation scores of the finished annotators of a specific row.
+
+    """
+    return row[['{}_to_curation'.format(annotator) for annotator in row['Finished_Annotators']]]
+
+def _get_span_count_in_row(row, cols):
+    """
+    Returns the sum of items of a row present in the specified columns.
+
+    """
+    return len(list(chain.from_iterable(row[cols])))
+
+
+
 def _get_score_article(span_list,  scoring_metric, finished_annotators, **optional_tuple_properties):
     """
     Calculates scoring metric based on tuple algo of spanlist of a single article. Optional tuple properties related to tuple matching, e.g gamma
@@ -226,16 +242,16 @@ class Inter_Annotator_Agreement(Corpus):
             total_n_tokens = len(list(chain.from_iterable(df_annotator['Tokens'])))
 
             for score_col in columns:
-                score = df_annotator.apply(lambda x: len(x['Tokens']) * x[score_col] / total_n_tokens, axis=1).sum()
+                score = df_annotator.apply(lambda row: len(row['Tokens']) * row[score_col] / total_n_tokens, axis=1).sum()
                 score_dict[score_col] = score
             
             return score_dict
         
         elif weight_by == 'Spans':
+            total_n_spans = df_annotator.apply(lambda row: _get_span_count_in_row(row, cols = row['Finished_Annotators']), axis=1).sum() # sum up all the spans of finished annotators
 
             for score_col in columns:
-                score = df_annotator.apply(lambda x: len(list(chain.from_iterable(x['Finished_Annotators']))) * x[score_col], axis=1).sum() #multiply len of spans by score
-                total_n_spans = df_annotator.apply(lambda x: len(list(chain.from_iterable(x['Finished_Annotators']))), axis=1).sum() # sum up all the spans of finished annotators
+                score = df_annotator.apply(lambda row:  _get_span_count_in_row(row, cols = row['Finished_Annotators']) * row[score_col], axis=1).sum() #multiply len of spans by score
                 score_dict[score_col] = score/total_n_spans
             
             return score_dict
@@ -252,10 +268,10 @@ class Inter_Annotator_Agreement(Corpus):
 
     def get_to_curation_score(self, weight_by = 'Tokens'):
         score_dict = {}
-        for annotator in ['Onerva', 'Alisha', 'Fabian', 'Fride']:
+        for annotator in self.annotators:
             row_name = '{}_to_curation'.format(annotator)
         
-            df_annotator = self.df[self.df.apply(lambda x: annotator in x['Finished_Annotators'],axis=1)]
+            df_annotator = self.df[self.df.apply(lambda row: annotator in row['Finished_Annotators'],axis=1)]
 
             if weight_by == 'no_weighting':
                 scores = df_annotator[row_name].mean()
@@ -263,24 +279,40 @@ class Inter_Annotator_Agreement(Corpus):
 
             elif weight_by == 'Tokens':
                 total_n_tokens = len(list(chain.from_iterable(df_annotator['Tokens'])))
-                scores = df_annotator.apply(lambda x: len(x['Tokens']) * x[row_name] / total_n_tokens, axis=1).sum()
+                scores = df_annotator.apply(lambda row: len(row['Tokens']) * row[row_name] / total_n_tokens, axis=1).sum()
                 score_dict[annotator] = dict(zip(self.calculated_curation_scores, scores.T))
 
             elif weight_by == 'Spans':
-                score = df_annotator.apply(lambda x: len(list(chain.from_iterable(x['Finished_Annotators']))) * x[row_name], axis=1).sum()
-                total_n_spans = df_annotator.apply(lambda x: len(list(chain.from_iterable(x['Finished_Annotators']))), axis=1).sum()
-                scores = score/total_n_spans
+                total_n_spans = df_annotator.apply(lambda row: _get_span_count_in_row(row, cols = [annotator, 'Curation']), axis=1).sum()
+                scores = df_annotator.apply(lambda row:  _get_span_count_in_row(row, cols = [annotator, 'Curation']) * row[row_name] / total_n_spans, axis=1).sum()
                 score_dict[annotator] = dict(zip(self.calculated_curation_scores, scores.T))
             else:
                 raise ValueError('This weighting method is not valid!')
-            #define how dict is printed to column
         
         
         return score_dict
 
 
+    def get_to_curation_score_total(self, weight_by = 'Tokens'):
+        score_dict = {}
+        df_annotator = self.df
 
 
+        if weight_by == 'no_weighting':
+            scores = df_annotator.apply(lambda row: to_curation_colums(row).mean(), axis=1).mean()
+            return dict(zip(self.calculated_curation_scores, scores.T))
+
+        elif weight_by == 'Tokens':
+            total_n_tokens = len(list(chain.from_iterable(df_annotator['Tokens'])))
+            scores = df_annotator.apply(lambda row: len(row['Tokens']) * to_curation_colums(row).mean() / total_n_tokens, axis=1).sum()
+            return dict(zip(self.calculated_curation_scores, scores.T))
+
+        elif weight_by == 'Spans':
+            total_n_spans = df_annotator.apply(lambda row:  _get_span_count_in_row(row, cols = row['Finished_Annotators'] + ['Curation'] * 2), axis=1).sum()
+            scores = df_annotator.apply(lambda row: _get_span_count_in_row(row, cols = row['Finished_Annotators'] + ['Curation']* 2) * to_curation_colums(row).mean() / total_n_spans, axis=1).sum()
+            return dict(zip(self.calculated_curation_scores, scores.T))            
+
+        return score_dict
 
 
     def get_score_annotator(self, annotator, columns = 'all', weight_by_tokens = True):
@@ -320,39 +352,55 @@ class Inter_Annotator_Agreement(Corpus):
         return score_dict
         
                 
-    def get_score_spanlist(self, span_list, scoring_metric, weight_by_tokens = True, **optional_tuple_properties):
+    def get_score_spanlist(self, span_list, scoring_metric, weight_by = 'Spans', **optional_tuple_properties):
+
         """
         Extends get_score_spanlist for spanlist with multiple articles
 
         """
 
+        if len(span_list) == 0:
+            return ValueError('This spanlist is empty')
+
         repos = list(set([span_.rep for span_ in span_list]))
         total_score = 0
-        total_tokens = 0
+        normalization_count = 0
+
         
         for repo in repos:
-            n_tokens = self.get_token_count_from_repository(repo)
-            if n_tokens == 0:
-                continue
-
 
             span_list_repo = [span_ for span_ in span_list if span_.rep == repo]
-            annotators_span_list_repo = set([span_.annotator for span_ in span_list_repo])
+            annotators_span_list_repo = list(set([span_.annotator for span_ in span_list_repo]))
 
-            if len(annotators_span_list_repo) < 2:
-                continue
-          #  if len(annotators_span_list_repo) < 2 or len():
-          #      continue
+            n_tokens = len([span_.tokens for span_ in span_list_repo])
+            
+            if n_tokens == 0:
+                raise ValueError(f"zero tokens found for spanlist {span_list} and repo {repo}")
 
-            if weight_by_tokens:
-                n_tokens = n_tokens
+            if weight_by == 'no_weighting':
 
-            else: n_tokens = 1
+                total_score += _get_score_article(span_list_repo , scoring_metric, annotators_span_list_repo, **optional_tuple_properties) 
+                normalization_count +=1
 
-            total_score += _get_score_article(span_list_repo , scoring_metric, annotators_span_list_repo, **optional_tuple_properties) * n_tokens
-            total_tokens += n_tokens
+            elif weight_by == 'Tokens':
+
+                n_tokens = len([span_.tokens for span_ in span_list_repo])
+                total_score += _get_score_article(span_list_repo , scoring_metric, annotators_span_list_repo, **optional_tuple_properties) * n_tokens
+                normalization_count += n_tokens
+
+               
+            elif weight_by == 'Spans':
+
+                n_spans = len(span_list_repo)
+                total_score += _get_score_article(span_list_repo , scoring_metric, annotators_span_list_repo, **optional_tuple_properties) * n_spans
+                normalization_count += n_spans
+
+
+            else: 
+                raise ValueError('This weighting method is not valid!')
+
           
-        return total_score / total_tokens
+        return total_score / normalization_count
     
     
 
@@ -362,10 +410,5 @@ class Sent_Inter_Annotator_Agreement(Sent_Corpus, Inter_Annotator_Agreement):
 
 
 
-
-            
-          
-            
-    
 
 
