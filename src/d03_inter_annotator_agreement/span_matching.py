@@ -8,7 +8,7 @@ def create_tuples_pygamma(span_list, **dissimilarity_properties):
     continuum = Continuum()
     for spanlist_span in span_list:
         continuum.add(spanlist_span.annotator, Segment(spanlist_span.start, spanlist_span.stop), spanlist_span.tag_)
-    dissim = CombinedCategoricalDissimilarity(categories = dissimilarity_properties.get('category_list',continuum.categories), alpha=dissimilarity_properties.get('alpha', 1),   beta=dissimilarity_properties.get('beta', 1), cat_dissimilarity_matrix = dissimilarity_properties.get('cat_dissimilarity_matrix', None))
+    dissim = CombinedCategoricalDissimilarity(categories = dissimilarity_properties.get('category_list_matching',continuum.categories), alpha=dissimilarity_properties.get('alpha', 1),   beta=dissimilarity_properties.get('beta', 1), cat_dissimilarity_matrix = dissimilarity_properties.get('cat_dissimilarity_matrix_matching', None))
     best_alignment = continuum.get_best_alignment(dissim)
     
     #now retrieve spantuples

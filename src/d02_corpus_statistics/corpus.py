@@ -24,7 +24,10 @@ class Corpus:
         
         """
         self.df = copy.deepcopy(df)
-        self.annotators = list(set(chain.from_iterable(self.df['Finished_Annotators'])))
+        self.annotators = [col for col in self.df.columns[df_annotation_marker-1 :] if col != 'Curation'] 
+        self.finished_annotators = list(set(chain.from_iterable(self.df['Finished_Annotators'])))
+
+        
 
         if front_and_whereas == False:
             for matching_string in ['front', 'Whereas']:
@@ -66,7 +69,7 @@ class Corpus:
         return [x for x in iterator if type(x)!= str and x.rep.match(conditional_rep) == True]
         
         
-    def get_span_list(self, conditional_rep, columns = 'Curation', item = None, value = None):
+    def get_span_list(self, conditional_rep, annotators = 'Curation', item = None, value = None):
         """
         Returns a list of spans based on a conditional repository and can be filtered by a item and corresponding value.
 
@@ -83,15 +86,15 @@ class Corpus:
 
         """
 
-        if columns == 'all':
-            columns = [col for col in self.df.columns[df_annotation_marker-1 :] if 'score' not in col]
+        if annotators == 'all':
+            annotators = self.annotators + ['Curation']
         
 
-        if columns == 'annotators':
-            columns = [col for col in self.df.columns[df_annotation_marker-1 :] if 'score' not in col and col != 'Curation']
+        if annotators == 'annotators':
+            annotators = self.annotators
         
 
-        iterator = self._get_iterator_conditional_rep(conditional_rep, columns)
+        iterator = self._get_iterator_conditional_rep(conditional_rep, annotators)
         
         if item == None and value == None:
             return [x for x in iterator if type(x)!= str]
@@ -104,7 +107,7 @@ class Corpus:
 
             
     
-    def get_span_count(self, conditional_rep, columns = 'Curation', item = None, value = None):
+    def get_span_count(self, conditional_rep, annotators = 'Curation', item = None, value = None):
                    
         """
         Returns count of spans based on a conditional repository and can be filtered by a item and corresponding value.
@@ -122,9 +125,9 @@ class Corpus:
 
 
         """
-        return len(self.get_span_list(conditional_rep, columns, item, value))    
+        return len(self.get_span_list(conditional_rep, annotators, item, value))    
 
-    def get_span_distro(self, conditional_rep, columns = 'Curation', item = None, value = None, return_format = 'dict', level = 'character'):
+    def get_span_distro(self, conditional_rep, annotators = 'Curation', item = None, value = None, return_format = 'dict', level = 'character'):
                    
         """
         Returns a distribution of span lenghts based on a span list. 
@@ -147,7 +150,7 @@ class Corpus:
 
         """
         
-        span_list = self.get_span_list(conditional_rep, columns, item, value)
+        span_list = self.get_span_list(conditional_rep, annotators, item, value)
         
         if level == 'character':
             len_list = [(x.stop - x.start) for x in span_list]
@@ -195,7 +198,7 @@ class Corpus:
         
 
 
-    def get_tokens_from_span_list(self, conditional_rep, columns = 'Curation', item = None, value = None):
+    def get_tokens_from_span_list(self, conditional_rep, annotators = 'Curation', item = None, value = None):
 
         """
         Returns a set of tokens based on a span list. 
@@ -213,11 +216,11 @@ class Corpus:
 
         """
 
-        span_list = self.get_span_list(conditional_rep, columns, item, value)
+        span_list = self.get_span_list(conditional_rep, annotators, item, value)
         return list(set(chain.from_iterable([x.tokens for x in span_list])))
 
 
-    def get_token_count_from_span_list(self, conditional_rep, columns = 'Curation', item = None, value = None):
+    def get_token_count_from_span_list(self, conditional_rep, annotators = 'Curation', item = None, value = None):
 
         """
         Returns token count based on a span list. 
@@ -234,10 +237,10 @@ class Corpus:
             E.g item = 'layer' and value = 'Policydesigncharacteristics' or item = 'type and value ='Compliance' and item = 'tag' and value = 'Form_monitoring'.
 
         """
-        return len(self.get_tokens_from_span_list(conditional_rep, columns, item, value)) 
+        return len(self.get_tokens_from_span_list(conditional_rep, annotators, item, value)) 
 
 
-    def most_frequent_labeled_tokens(self, conditional_rep, columns = 'Curation', item = None, value = None):
+    def most_frequent_labeled_tokens(self, conditional_rep, annotators = 'Curation', item = None, value = None):
 
         """
         Returns dict containing the most labeled tokens in descending order based on a span list. 
@@ -254,12 +257,12 @@ class Corpus:
             E.g item = 'layer' and value = 'Policydesigncharacteristics' or item = 'type and value ='Compliance' and item = 'tag' and value = 'Form_monitoring'.
 
         """
-        span_list = self.get_span_list(conditional_rep, columns, item, value) #get the spanlist of all the span that match search criteria
+        span_list = self.get_span_list(conditional_rep, annotators, item, value) #get the spanlist of all the span that match search criteria
         token_iterator = chain.from_iterable([x.tokens for x in span_list]) #retrieve all the tokens from the span list and create a iterator (since the list contains sublists)
         token_counter_dict = collections.Counter([x.text for x in token_iterator]) #get a list the text of the token, count the different elements and create a dict
         return dict(sorted(token_counter_dict.items(), key=lambda item: item[1], reverse=True))  #sort the dict by counts
 
-    def most_frequent_labeled_spans(self, conditional_rep, columns = 'Curation', item = None, value = None):
+    def most_frequent_labeled_spans(self, conditional_rep, annotators = 'Curation', item = None, value = None):
     
         """
         Returns dict containing the most labeled spans in descending order based on a span list. 
@@ -273,7 +276,7 @@ class Corpus:
             The value corresponding to the desired 'layer', 'type' or 'tag'.
             E.g item = 'layer' and value = 'Policydesigncharacteristics' or item = 'type and value ='Compliance' and item = 'tag' and value = 'Form_monitoring'.
         """
-        span_list = self.get_span_list(conditional_rep, columns, item, value) #get the spanlist of all the span that match search criteria
+        span_list = self.get_span_list(conditional_rep, annotators, item, value) #get the spanlist of all the span that match search criteria
         span_iterator = [x.text for x in span_list] #retrieve all the span text from the span list
         span_counter_dict = collections.Counter(span_iterator) # count the different elements (spans) and create a dict
         return dict(sorted(span_counter_dict.items(), key=lambda item: item[1], reverse=True))  #sort the dict by counts

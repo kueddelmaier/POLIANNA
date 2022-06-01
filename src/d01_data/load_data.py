@@ -13,8 +13,26 @@ import numpy as np
 import collections
 from string import ascii_uppercase
 import pdb
+import argparse
 
-sys.path.append('/home/kueddelmaier/eth/work/NLP_spark/src')
+#just to test, delete at the and and do with python path
+
+sys.path.insert(0,'..')
+####
+
+parser = argparse.ArgumentParser(description='Load annotation data')
+
+parser.add_argument('--out_dir', type = str,
+    help='Where to store the processed data', default=)
+
+
+
+args = parser.parse_args()
+
+#get linear configs
+lin_config = utils.get_config(args.lin_config)
+
+
 from src.experiment_utils.helper_classes import token, span, repository
 from definitions import ROOT_DIR, RAW_DATA_PATH
 
@@ -275,7 +293,7 @@ stat_df = stat_df.replace(np.nan, '')
 
 #create data_dir
 
-data_dir = os.path.join(ROOT_DIR, 'data')
+
 
 if not os.path.exists(data_dir):
     os.makedirs(data_dir)

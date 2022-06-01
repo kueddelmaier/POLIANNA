@@ -10,6 +10,19 @@ from itertools import chain
 
 
 def create_scoring_matrix(tagset_path, soft_dissimilarity_penality = 0.5, soft_layer_dissimilarity = False, soft_tagset_dissimilarity = False):
+    """
+    TODO: why not traverse json directly, why create a hirarchical list?
+
+
+    Creates a scoring matrix for the pygamma agreement based on a tagset. The tagset needs to be a json with a hirarchical structure. 
+    For an example, see "tag_set.json"
+
+    Missmatches between the same category are penalized with the soft_dissimilarity_penality, all other missmatches are penalized with 1
+
+
+    """
+    assert 0 <= soft_dissimilarity_penality <= 1, "soft_dissimilarity_penality should be a value between 0 and 1"
+
     if soft_layer_dissimilarity == soft_tagset_dissimilarity:
         raise ValueError('Soft_layer_dissimilarity and soft_tagset_dissimilarity need to be different!')
    
@@ -19,10 +32,12 @@ def create_scoring_matrix(tagset_path, soft_dissimilarity_penality = 0.5, soft_l
         except IOError as e:
             raise e
 
+    #create a hirarchical list structure of all the tags
+
     matrix_list = []
 
 
-    if soft_layer_dissimilarity:
+    if soft_layer_dissimilarity: #if soft_layer_dissimilarity = True, all the missmatches within the same layer are penalized with the soft_dissimilarity_penality
         for layer in data['layers']:
             layer_tags = []
             for tagset in layer['tagsets']:
@@ -31,7 +46,7 @@ def create_scoring_matrix(tagset_path, soft_dissimilarity_penality = 0.5, soft_l
 
             matrix_list.append(layer_tags)
 
-    if soft_tagset_dissimilarity:
+    if soft_tagset_dissimilarity: #if soft_layer_dissimilarity = True, all the missmatches within the same tagset are penalized with the soft_dissimilarity_penality
         for layer in data['layers']:
             for tagset in layer['tagsets']:
                 tagset_tags = []
@@ -41,17 +56,17 @@ def create_scoring_matrix(tagset_path, soft_dissimilarity_penality = 0.5, soft_l
     
 
     matrix_flat = list(chain.from_iterable(matrix_list))
-    matrix_flat.append('')    #handles empty anotations
-    matrix_array = np.ones((len(matrix_flat), len(matrix_flat)))
+    matrix_flat.append('')    #handles empty annotations
+    matrix_array = np.ones((len(matrix_flat), len(matrix_flat))) #by default, the penalty of a missmatch between two different tags is 1
+
     
 
-    for tag in matrix_flat:
-        for sublist in matrix_list:
+    for tag in matrix_flat: # iterate over all the tags
+        for sublist in matrix_list: 
             if tag in sublist:
-                matrix_array[matrix_flat.index(tag),[matrix_flat.index(sub_list_tag) for sub_list_tag in sublist]] = soft_dissimilarity_penality
+                matrix_array[matrix_flat.index(tag),[matrix_flat.index(sub_list_tag) for sub_list_tag in sublist]] = soft_dissimilarity_penality #all the missmatches for the same catergory (layer or tagset) get the soft penalty
 
-    np.fill_diagonal(matrix_array,0)
-
+    np.fill_diagonal(matrix_array,0) # the penalty for the the diagonal (no missmatch as true label = predicted label) is zero
     return matrix_flat, matrix_array
 
 def check_symmetric(a, rtol=1e-05, atol=1e-08):
@@ -150,7 +165,7 @@ def f1_heuristic(span_list, annotator_pair):
         if len(span_matchings) >= 1:
             tp_annotator += 1
 
-    precision_cur = tp_curation / (tp_curation + len(annotator_spans) - tp_annotator)
+    precision_cur = tp_curation / (tp_curation + len(annotator_spans) - tp_annotator)  # this is redundant but kept for better readability
     recall_cur = tp_curation / (tp_curation + len(curation_spans) - tp_curation)
 
     precision_ann = tp_annotator / (tp_annotator + len(curation_spans) - tp_curation)
