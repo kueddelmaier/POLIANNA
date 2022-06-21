@@ -15,26 +15,34 @@ from string import ascii_uppercase
 import pdb
 import argparse
 
+import pdb
+
+
+import data_utils as utils
+
 #just to test, delete at the and and do with python path
 
-sys.path.insert(0,'..')
+sys.path.insert(0,'../..')
+
+
+from src.experiment_utils.helper_classes import token, span, repository
+from definitions import ROOT_DIR, RAW_DATA_PATH
+
+
+
 ####
 
 parser = argparse.ArgumentParser(description='Load annotation data')
 
 parser.add_argument('--out_dir', type = str,
-    help='Where to store the processed data', default=)
+    help='Where to store the processed data', default= os.path.join(ROOT_DIR, 'data'))
 
 
 
 args = parser.parse_args()
 
 #get linear configs
-lin_config = utils.get_config(args.lin_config)
 
-
-from src.experiment_utils.helper_classes import token, span, repository
-from definitions import ROOT_DIR, RAW_DATA_PATH
 
 
 annotator_path = os.path.join(RAW_DATA_PATH , 'annotation')  
@@ -42,23 +50,6 @@ curation_path = os.path.join(RAW_DATA_PATH , 'curation')
 
 remove_doublicates = True
 
-
-def remove_span_doublicates(span_list):
-
-    hash_table = {}
-    for span_ in span_list:
-        hash_value = hash(span_)
-        if hash_value in hash_table:
-            del span_
-        else:
-            hash_table[hash_value] = span_
-        
-    ret = list(hash_table.values())
-
-    if len(ret) < len(span_list):
-        print('removed the following doublicates:')
-        print([x for x in span_list if x not in ret])
-    return ret
 
 
 stat_df = pd.DataFrame(columns = ['Policy', 'Text', 'Tokens', 'Article_State', 'Finished_Annotators', 'Curation'], dtype = object) #create the initial dataframe
@@ -219,7 +210,7 @@ for subdir in annotator_subdirs:
 
                         span_counter[annotator] +=1
             if remove_doublicates== True:
-                spanlist_clean = remove_span_doublicates(spanlist)
+                spanlist_clean = utils.remove_span_doublicates(spanlist)
                 
             stat_df[annotator].loc[subdir_index] = spanlist_clean
             annotator_count +=1   
@@ -282,7 +273,7 @@ for subdir in curation_subdirs:
                     cur_count += 1
 
         if remove_doublicates== True:
-            spanlist_clean = remove_span_doublicates(spanlist)
+            spanlist_clean = utils.remove_span_doublicates(spanlist)
 
         stat_df['Curation'].loc[subdir_index] = spanlist_clean     
 #stat_df['tokens cleaned'] = stat_df['Text'].apply(clean_text)  
@@ -295,14 +286,14 @@ stat_df = stat_df.replace(np.nan, '')
 
 
 
-if not os.path.exists(data_dir):
-    os.makedirs(data_dir)
+if not os.path.exists(args.out_dir):
+    os.makedirs(args.out_dir)
 
 
-processed_data_dir = os.path.join(data_dir,'02_processed_to_dataframe')
+processed_out_dir = os.path.join(args.out_dir,'02_processed_to_dataframe')
 
-if not os.path.exists(processed_data_dir):
-    os.makedirs(processed_data_dir)
+if not os.path.exists(processed_out_dir):
+    os.makedirs(processed_out_dir)
 
 out_dir_pkl = os.path.join(ROOT_DIR,'data/02_processed_to_dataframe', 'preprocessed_dataframe.pkl')
 stat_df.to_pickle(out_dir_pkl)
