@@ -372,6 +372,10 @@ class Corpus:
         else:
             self.df.loc[repo.index_name]['Curation'].remove(target[0])
 
+    def export_to_json(self):
+        pass
+
+
     
 class Sent_Corpus(Corpus):
 

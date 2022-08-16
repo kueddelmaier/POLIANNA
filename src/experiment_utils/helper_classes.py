@@ -20,7 +20,6 @@ class repository:
         if isinstance(other, repository):
             return self.policy == other.policy and self.title == other.title and self.chapter == other.chapter and self.section == other.section and self.article == other.article and self.sentence == self.sentence
         return False
-      
         
     def __hash__(self):
         return hash(self.__repr__())
