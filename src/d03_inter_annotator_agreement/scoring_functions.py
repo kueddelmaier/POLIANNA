@@ -281,7 +281,6 @@ def f1_exact_brute_force(span_list, annotator_pair):
 
 
 
-    
 
 def f1_heuristic(span_list, annotator_pair): ## To Do : use f1 function as is f1_tokenwise_article ##
 
