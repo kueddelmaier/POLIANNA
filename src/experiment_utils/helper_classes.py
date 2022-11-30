@@ -57,18 +57,55 @@ class repository:
         return set(other_value_set).issubset(self_value_set) #returns True if the attributes of the search-criteria is a subset of the attributes of the current directory (=match)
     
 class token:
-    def __init__(self, start, stop, text, rep, tag_count = 0):
+    def __init__(self, start, stop, text, rep):
         self.start = start
         self.stop = stop
         self.text = text
         self.rep = rep
-        self.tag_count = tag_count
+        self.spans = []     #spans that labeled this token
+
+    def add_span(self, span_id):
+        self.spans.append(span_id)
+
+    
+    def get_token_spans(self, annotators = 'Curation'):
+
+        if annotators == 'all':
+            return self.spans
+
+        if annotators == 'annotators':
+            return [span_ for span_  in self.spans if 'Curation' not in span_.annotator]
+
+        if annotators == 'Curation': 
+            return [span_ for span_  in self.spans if 'Curation' in span_.annotator]
+
+        else:
+            return [span_ for span_  in self.spans if annotators in span_.annotator]
+
+
+    def get_token_tags(self, annotators = 'Curation'):
+    
+        if annotators == 'all':
+            return [span_.tag_ for span_  in self.spans]
+
+        if annotators == 'annotators':
+            return [span_.tag_ for span_  in self.spans if 'Curation' not in span_.annotator]
+
+        if annotators == 'Curation': 
+            return [span_.tag_ for span_  in self.spans if 'Curation' in span_.annotator]
+
+        else:
+            return [span_.tag_ for span_  in self.spans if annotators in span_.annotator]
+
+
+    def get_span_count(self, annotators = 'Curation'):
+        return len(self.get_token_spans(annotators))
         
     def __repr__(self):
-        return f"start:{self.start} stop:{self.stop} text:{self.text} tag_count:{self.tag_count}"
+        return f"start:{self.start} stop:{self.stop} text:{self.text} tag_count:{self.get_span_count(annotators ='Curation')}"
 
     def __hash__(self): # used to remove duplicates
-        return hash(self.__repr__())
+        return hash((self.start, self.stop, self.text))
         
 class span:
     def __init__(self, span_id = None, layer_ = None, type_ = None, tag_ = None, start = None, stop = None, text = None, tokens = None, rep = None, annotator = None):
@@ -98,7 +135,7 @@ class span:
         return f"span id:{self.span_id} annotator:{self.annotator} layer:{self.layer_} type:{self.type_} tag:{self.tag_} start:{self.start} stop:{self.stop} text:{self.text}"
 
     def __hash__(self):
-        return hash((self.annotator, self.layer_, self.type_, self.tag_, self.start, self.stop, self.text, self.rep.__hash__()))  #tags with identical properties and identical repo shoudl yield the same hash so they can be removed
+        return hash((self.annotator, self.layer_, self.type_, self.tag_, self.start, self.stop, self.text, self.rep.__hash__())) #tags with identical properties and identical repo shoudl yield the same hash so they can be removed
 
     def get_start(self):
         return self.start
@@ -107,7 +144,6 @@ class span:
         return self.start == other.start and self.stop == other.stop and self.tag_ == other.tag_
 
     def partial_match(self, other):
-
         return self.start < other.stop and other.start < self.stop and self.tag_ == other.tag_
     
     def tokenwise_f1_score(self, other):
@@ -125,7 +161,7 @@ class span:
 
             if num_same == 0:
                 return 0
-                
+
             precision = 1.0 * num_same / len(self.tokens)
             recall = 1.0 * num_same / len(other.tokens)
             f1 = (2*precision * recall) / (precision + recall)

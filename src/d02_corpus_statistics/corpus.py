@@ -35,7 +35,6 @@ class Corpus:
         
         
 
-
     def _get_iterator_all(self, columns): 
 
         """
@@ -123,7 +122,6 @@ class Corpus:
             The value corresponding to the desired 'layer', 'type' or 'tag'.
             E.g item = 'layer' and value = 'Policydesigncharacteristics' or item = 'type and value ='Compliance' and item = 'tag' and value = 'Form_monitoring'.
 
-
         """
         return len(self.get_span_list(conditional_rep, annotators, item, value))    
 
@@ -196,7 +194,6 @@ class Corpus:
         return len(self.get_token_list_from_repository(conditional_rep))
         
         
-
 
     def get_tokens_from_span_list(self, conditional_rep, annotators = 'Curation', item = None, value = None):
 
@@ -345,8 +342,11 @@ class Corpus:
 
         """
         Drops articles matching the string or the strings given in 'matching_string. 
+        
+
+        Parameters
         ----------
-        string: string or string list
+        matching_strings: string or string list
 
         """
         if isinstance(matching_strings, str):
@@ -371,6 +371,8 @@ class Corpus:
             raise ValueError('more than one elemtn found')
         else:
             self.df.loc[repo.index_name]['Curation'].remove(target[0])
+
+            
 
     def export_to_json(self):
         pass

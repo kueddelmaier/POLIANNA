@@ -10,16 +10,10 @@ from tqdm import tqdm
 import collections
 from src.d02_corpus_statistics.corpus import Corpus, Sent_Corpus
 from src.d03_inter_annotator_agreement.scoring_functions import (
-    check_symmetric, create_scoring_matrix, scoring_metrics, unified_gamma, f1_heuristic)
+    check_symmetric, create_scoring_matrix, scoring_metrics, unified_gamma, f1_heuristic, f1_exact_brute_force, f1_article_tokenwise, f1_positional_article_tokenwise)
 from src.d03_inter_annotator_agreement.span_matching import matching_methods
 from src.experiment_utils.helper_classes import repository, span, token
 
-score = 0
-total_tokens = 0
-
-
-def is_valid_annotation(span_list):
-    return type(span_list) == list and len(span_list) >= 2
 
 def keep_valid_anotations(span_series):
   
@@ -115,7 +109,7 @@ def _get_score_article(span_list,  scoring_metric, finished_annotators, **option
 
     #create tuples:
     else:
-        if scoring_metric not in scoring_metrics and scoring_metric != 'f1_heuristic':
+        if scoring_metric not in scoring_metrics and scoring_metric not in ['f1_heuristic', 'f1_exact_brute_force','f1_article_tokenwise', 'f1_article_tokenwise_r', 'f1_positional_article_tokenwise']: ####### MODIFY AND WRITE BETTER #######
             raise ValueError('This metric: ', scoring_metric, ' does not exist')
 
         score = 0
@@ -139,6 +133,18 @@ def _get_score_article(span_list,  scoring_metric, finished_annotators, **option
             elif scoring_metric == 'f1_heuristic':
                 score += f1_heuristic(span_list_annotator_pair, annotator_pair)
             
+            elif scoring_metric == 'f1_exact_brute_force':
+                score += f1_exact_brute_force(span_list_annotator_pair, annotator_pair)
+
+            elif scoring_metric == 'f1_article_tokenwise':
+                score += f1_article_tokenwise(span_list_annotator_pair, annotator_pair)
+
+            elif scoring_metric == 'f1_article_tokenwise_r':
+                score += f1_article_tokenwise_r(span_list_annotator_pair, annotator_pair)
+
+            elif scoring_metric == 'f1_positional_article_tokenwise':
+                score += f1_positional_article_tokenwise(span_list_annotator_pair, annotator_pair)
+
             else:
                 #span_tuples = matching_methods[tuple_algo](span_list_annotator_pair, **optional_tuple_properties)
                 span_tuples = matching_methods['pygamma'](span_list_annotator_pair, **optional_tuple_properties)
