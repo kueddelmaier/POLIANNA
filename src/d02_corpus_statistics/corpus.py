@@ -19,7 +19,7 @@ class Corpus:
         Corpus Statistics
         Parameters
         ----------
-        Dataframe :
+        df :
             Dataframe where each column represents a article
         
         """

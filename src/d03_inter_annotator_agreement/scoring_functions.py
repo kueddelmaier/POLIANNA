@@ -8,6 +8,7 @@ from pyannote.core import Segment
 from pygamma_agreement import CombinedCategoricalDissimilarity
 from itertools import chain
 from collections import Counter
+from src.d03_inter_annotator_agreement.span_matching import create_tuples_pygamma
 
 
 
@@ -20,7 +21,6 @@ def create_scoring_matrix(tagset_path, soft_dissimilarity_penality = 0.5, soft_l
     For an example, see "tag_set.json"
 
     Missmatches between the same category are penalized with the soft_dissimilarity_penality, all other missmatches are penalized with 1
-
 
     """
     assert 0 <= soft_dissimilarity_penality <= 1, "soft_dissimilarity_penality should be a value between 0 and 1"
@@ -61,7 +61,6 @@ def create_scoring_matrix(tagset_path, soft_dissimilarity_penality = 0.5, soft_l
     matrix_flat.append('')    #handles empty annotations
     matrix_array = np.ones((len(matrix_flat), len(matrix_flat))) #by default, the penalty of a missmatch between two different tags is 1
 
-    
 
     for tag in matrix_flat: # iterate over all the tags
         for sublist in matrix_list: 
@@ -72,6 +71,12 @@ def create_scoring_matrix(tagset_path, soft_dissimilarity_penality = 0.5, soft_l
     return matrix_flat, matrix_array
 
 def check_symmetric(a, rtol=1e-05, atol=1e-08):
+
+    """
+    
+    Check if a matrix is symmetric
+
+    """
     return np.allclose(a, a.T, rtol=rtol, atol=atol)
     
 
@@ -88,17 +93,17 @@ def unified_gamma(span_list, **dissimilarity_properties):
         #means that the linear solver couldn't find an alignment with minimal disorder
         #can be due to too many unitary aligments
         #in this case, split the span_list in half
+        #make shure that no spans are overlapping the treshhold since in this case we don't know where this span belongs to
 
         treshhold = np.median([(span_.start + span_.stop)/ 2 for span_ in span_list])
         spans_overlapping_treshhold = [span_ for span_ in span_list if span_.start < treshhold and span_.stop > treshhold]
 
         i = 1
-        while len(spans_overlapping_treshhold) != 0:
-            treshhold = treshhold + (i * (-1) ** (i-1))
+        while len(spans_overlapping_treshhold) != 0: # if there is an overlapping span, create a alternating sequence to modify treshhold until there is no overlapping span
+            treshhold = treshhold + (i * ((-1) ** (i-1))) 
             spans_overlapping_treshhold = [span_ for span_ in span_list if span_.start <= treshhold and span_.stop >= treshhold]
             i +=1
         
-
         span_list_1 = [span_ for span_ in span_list if span_.stop < treshhold]
         span_list_2 = [span_ for span_ in span_list if span_.start > treshhold]
 
@@ -110,9 +115,6 @@ def unified_gamma(span_list, **dissimilarity_properties):
 
         return (gamma_score_1 * len(span_list_1) + gamma_score_2 * len(span_list_2)) / len(span_list)
         
-
-       
-
     return gamma_results.gamma
 
 def f1(cor, act, pos):
@@ -123,7 +125,9 @@ def f1(cor, act, pos):
     else:
         return (2*precision*recall)/(precision+recall)
 
-def f1_exact(tuple_list):
+def f1_exact_pygamma(span_list_annotator_pair, annotator_pair, **optional_tuple_properties):
+
+    tuple_list = create_tuples_pygamma(span_list_annotator_pair, **optional_tuple_properties)
     # for a given tuple, treat tuple[0] as prediciton and tuple[1] as gold standart since the score is symmetric
     # note that all the spans of a certain annotator that arre missing in the counterpart are matched to a "None" Tag
 
@@ -132,9 +136,11 @@ def f1_exact(tuple_list):
     pos = len([n_tuple[1] for n_tuple in tuple_list if n_tuple[1].tag_ != None ]) # equal to all the spans of the gold standart = tp + fn
     return f1(exact, act, pos)
 
-def f1_partial(tuple_list):
+def f1_partial_pygamma(span_list_annotator_pair, annotator_pair, **optional_tuple_properties):
+
+    tuple_list = create_tuples_pygamma(span_list_annotator_pair, **optional_tuple_properties)
     # for a given tuple, treat tuple[0] as prediciton and tuple[1] as gold standart since the score is symmetric
-    # note that all the spans of a certain annotator that arre missing in the counterpart are matched to a "None" Tag
+    # note that all the spans of a certain annotator that are missing in the counterpart are matched to a "None" Tag
 
     partial = sum([n_tuple[0].partial_match(n_tuple[1]) for n_tuple in tuple_list if n_tuple[0].tag_ != None and n_tuple[1].tag_ != None])
     act = len([n_tuple[0] for n_tuple in tuple_list if n_tuple[0].tag_ != None ]) # equal to all the spans of the prediction = tp + fp
@@ -142,68 +148,14 @@ def f1_partial(tuple_list):
 
     return f1(partial, act, pos)
 
-def f1_tokenwise(tuple_list):
+def f1_tokenwise_pygamma(span_list_annotator_pair, annotator_pair, **optional_tuple_properties):
+
+    tuple_list = create_tuples_pygamma(span_list_annotator_pair, **optional_tuple_properties)
+
     # calculate the mean of all the individual tokenwise f1-scores of all spans
 
     return sum([n_tuple[0].tokenwise_f1_score(n_tuple[1]) for n_tuple in tuple_list])/len(tuple_list)
 
-def f1_article_tokenwise(span_list, annotator_pair):
-
-    f1_score = np.zeros(2)
-    for i in range(0,2):
-        curation_spans = [cur_span for cur_span in span_list if cur_span.annotator == annotator_pair[i]]
-        annotator_spans = [ann_span for ann_span in span_list if ann_span.annotator == annotator_pair[(i+1)%2]]
-
-        curation_tokens = list(chain.from_iterable([cur_span.tokens for cur_span in curation_spans]))
-        annotator_tokens = list(chain.from_iterable([ann_span.tokens for ann_span in annotator_spans]))
-
-        if len(curation_spans) + len(annotator_spans) != len(span_list):
-            raise ValueError('Curation spans, annotations spans and span_list do not match in length')
-            
-        tp_curation = 0
-    
-
-        for ann_span in annotator_spans:
-            for ann_tok in ann_span.tokens:
-                tok_matchings = [cur_tok for cur_tok in curation_tokens if ann_tok == cur_tok and ann_span.tag_ in cur_tok.get_token_tags(annotators = annotator_pair[i])]
-                
-                if len(tok_matchings) >= 1:
-                    tp_curation += 1
-
-        act = len(annotator_tokens) # equal to all the spans of the prediction = tp + fp
-        pos = len(curation_tokens) # equal to all the spans of the gold standart = tp + fn
-
-        #return f1(tp, act, pos)
-        f1_score[i] = f1(tp_curation, act, pos)
-    return np.mean(f1_score)
-
-def f1_article_tokenwise_(span_list, annotator_pair):
-    
- 
-
-    curation_spans = [cur_span for cur_span in span_list if cur_span.annotator == annotator_pair[0]]
-    annotator_spans = [ann_span for ann_span in span_list if ann_span.annotator == annotator_pair[1]]
-
-    curation_tokens = list(chain.from_iterable([cur_span.tokens for cur_span in curation_spans]))
-    annotator_tokens = list(chain.from_iterable([ann_span.tokens for ann_span in annotator_spans]))
-
-    if len(curation_spans) + len(annotator_spans) != len(span_list):
-        raise ValueError('Curation spans, annotations spans and span_list do not match in length')
-        
-    tp_curation = 0
-
-
-    for ann_span in annotator_spans:
-        for ann_tok in ann_span.tokens:
-            tok_matchings = [cur_tok for cur_tok in curation_tokens if ann_tok == cur_tok and ann_span.tag_ in cur_tok.get_token_tags(annotators = annotator_pair[0])]
-            
-            if len(tok_matchings) >= 1:
-                tp_curation += 1
-
-    act = len(annotator_tokens) # equal to all the spans of the prediction = tp + fp
-    pos = len(curation_tokens) # equal to all the spans of the gold standart = tp + fn
-
-    return f1(tp_curation, act, pos)
 
 
 
@@ -218,9 +170,6 @@ def f1_positional_article_tokenwise(span_list, annotator_pair):
     annotator_tokens = list(chain.from_iterable([ann_span.tokens for ann_span in annotator_spans]))
 
 
-
-    common_tokens = list(chain.from_iterable([]))
-
     tp = len(list((Counter(annotator_tokens) & Counter(curation_tokens)).elements())) #calculates the intersection including doublicates (some tokens are labeled multiple times), which is the lowest count found in either list for each element when you take the intersection
 
     act = len(annotator_tokens) # equal to all the spans of the prediction = tp + fp
@@ -230,112 +179,107 @@ def f1_positional_article_tokenwise(span_list, annotator_pair):
     return f1(tp, act, pos)
 
 
+def f1_article_tokenwise(span_list, annotator_pair):
+    
+    f1_score = np.zeros(2)
+    for i in range(0,2):
+        curation_spans = [cur_span for cur_span in span_list if cur_span.annotator == annotator_pair[i]]
+        annotator_spans = [ann_span for ann_span in span_list if ann_span.annotator == annotator_pair[(i+1)%2]]
 
-def f1_exact_brute_force(span_list, annotator_pair):
+        curation_tokens = list(chain.from_iterable([cur_span.tokens for cur_span in curation_spans]))
+        annotator_tokens = list(chain.from_iterable([ann_span.tokens for ann_span in annotator_spans]))
+
+        if len(curation_spans) + len(annotator_spans) != len(span_list):
+            raise ValueError('Curation spans, annotations spans and span_list do not match in length')
+            
+        tp = 0
+    
+        for ann_span in annotator_spans:
+            for ann_tok in ann_span.tokens:
+                tok_matchings = [cur_tok for cur_tok in curation_tokens if ann_tok == cur_tok and ann_span.tag_ in cur_tok.get_token_tags(annotators = annotator_pair[i])]
+                
+                if len(tok_matchings) >= 1:
+                    tp += 1
+
+        act = len(annotator_tokens) # equal to all the spans of the prediction = tp + fp
+        pos = len(curation_tokens) # equal to all the spans of the gold standart = tp + fn
+
+        #return f1(tp, act, pos)
+        f1_score[i] = f1(tp, act, pos)
+    return np.mean(f1_score)
+
+
+def f1_exact(span_list, annotator_pair):
 
    
     # Could be written much more compact, since much of the code is redundant
     # But avoided for better understanding
 
-    curation_spans = [cur_span for cur_span in span_list if cur_span.annotator == annotator_pair[0]]
-    annotator_spans = [ann_span for ann_span in span_list if ann_span.annotator == annotator_pair[1]]
+    f1_score = np.zeros(2)
 
-    if len(curation_spans) + len(annotator_spans) != len(span_list):
-        raise ValueError('Curation spans, annotations spans and span_list do not match in length')
+    for i in range(0,2):
+        curation_spans = [cur_span for cur_span in span_list if cur_span.annotator == annotator_pair[i]]
+        annotator_spans = [ann_span for ann_span in span_list if ann_span.annotator == annotator_pair[(i+1)%2]]
+
+        if len(curation_spans) + len(annotator_spans) != len(span_list):
+            raise ValueError('Curation spans, annotations spans and span_list do not match in length')
+
+        tp = 0
         
-    tp_curation = 0
-    tp_annotator = 0
+        for ann_span in annotator_spans:
+            # all the spans that overlap and have the same ## To Do : use f1 function as is f1_tokenwise_article ##tag
+            span_matchings = [cur_span for cur_span in curation_spans if cur_span.start == ann_span.start and cur_span.stop == ann_span.stop and cur_span.tag_ == ann_span.tag_]
+            
+            if len(span_matchings) >= 1:
+                tp += 1
+        act = len(annotator_spans) # equal to all the spans of the prediction = tp + fp
+        pos = len(curation_spans) # equal to all the spans of the gold standart = tp + fn
 
-    for cur_span in curation_spans:
-        # all the spans that overlap and have the same tag
-        span_matchings = [ann_span for ann_span in annotator_spans if ann_span.start == cur_span.start and ann_span.stop == cur_span.stop and ann_span.tag_ == cur_span.tag_]
+        #return f1(tp, act, pos)
+        f1_score[i] = f1(tp, act, pos)
+    return np.mean(f1_score)
 
-        if len(span_matchings) >= 1:
-            tp_curation += 1
-    
-    for ann_span in annotator_spans:
-        # all the spans that overlap and have the same tag
-        span_matchings = [cur_span for cur_span in curation_spans if cur_span.start == ann_span.start and cur_span.stop == ann_span.stop and cur_span.tag_ == ann_span.tag_]
+
+
+
+def f1_heuristic(span_list, annotator_pair): 
+
+
+    f1_score = np.zeros(2)
+
+    for i in range(0,2):
+        curation_spans = [cur_span for cur_span in span_list if cur_span.annotator == annotator_pair[i]]
+        annotator_spans = [ann_span for ann_span in span_list if ann_span.annotator == annotator_pair[(i+1)%2]]
+
+        if len(curation_spans) + len(annotator_spans) != len(span_list):
+            raise ValueError('Curation spans, annotations spans and span_list do not match in length')
         
-        if len(span_matchings) >= 1:
-            tp_annotator += 1
+        tp = 0
 
-    precision_ann = tp_annotator / (tp_annotator + (len(annotator_spans) - tp_annotator)) # this is redundant but kept for better readability
-    recall_ann = tp_annotator / (tp_annotator + (len(curation_spans) - tp_curation))
-
-    precision_cur = tp_curation / (tp_curation + (len(curation_spans) - tp_curation))  
-    recall_cur = tp_curation / (tp_curation + (len(annotator_spans) - tp_annotator))
-
-    if precision_cur + recall_cur == 0:
-        f1_cur = 0
-    else:
-        f1_cur = (2*precision_cur*recall_cur)/(precision_cur + recall_cur) 
-
-    if precision_ann + recall_ann == 0:
-        f1_ann = 0
-    else:
-        f1_ann = (2*precision_ann*recall_ann)/(precision_ann+recall_ann)
-
-    return (f1_cur + f1_ann) / 2
-
-
-
-
-
-def f1_heuristic(span_list, annotator_pair): ## To Do : use f1 function as is f1_tokenwise_article ##
-
-    # Could be written much more compact, since much of the code is redundant
-    # But avoided for better understanding
-
-    curation_spans = [cur_span for cur_span in span_list if cur_span.annotator == annotator_pair[0]]
-    annotator_spans = [ann_span for ann_span in span_list if ann_span.annotator == annotator_pair[1]]
-
-    if len(curation_spans) + len(annotator_spans) != len(span_list):
-        raise ValueError('Curation spans, annotations spans and span_list do not match in length')
         
-    tp_curation = 0
-    tp_annotator = 0
+        for ann_span in annotator_spans:
+            # all the spans that overlap and have the same tag
+            span_matchings = [cur_span for cur_span in curation_spans if cur_span.start < ann_span.stop and cur_span.stop > ann_span.start and cur_span.tag_ == ann_span.tag_ ]
+            
+         
+            if len(span_matchings) >= 1:
+                tp += 1
+        act = len(annotator_spans) # equal to all the spans of the prediction = tp + fp
+        pos = len(curation_spans) # equal to all the spans of the gold standart = tp + fn
 
-    for cur_span in curation_spans:
-        # all the spans that overlap and have the same tag
-        span_matchings = [ann_span for ann_span in annotator_spans if ann_span.start < cur_span.stop and ann_span.stop > cur_span.start and ann_span.tag_ == cur_span.tag_]
+        #return f1(tp, act, pos)
+        f1_score[i] = f1(tp, act, pos)
+    return np.mean(f1_score)
 
-        if len(span_matchings) >= 1:
-            tp_curation += 1
-    
-    for ann_span in annotator_spans:
-        # all the spans that overlap and have the same tag
-        span_matchings = [cur_span for cur_span in curation_spans if cur_span.start < ann_span.stop and cur_span.stop > ann_span.start and cur_span.tag_ == ann_span.tag_ ]
-        
-        if len(span_matchings) >= 1:
-            tp_annotator += 1
-
-    precision_ann = tp_annotator / (tp_annotator + (len(annotator_spans) - tp_annotator)) # this is redundant but kept for better readability
-    recall_ann = tp_annotator / (tp_annotator + (len(curation_spans) - tp_curation))
-
-    precision_cur = tp_curation / (tp_curation + (len(curation_spans) - tp_curation))  
-    recall_cur = tp_curation / (tp_curation + (len(annotator_spans) - tp_annotator))
-
-    if precision_cur + recall_cur == 0:
-        f1_cur = 0
-    else:
-        f1_cur = (2*precision_cur*recall_cur)/(precision_cur + recall_cur) 
-
-    if precision_ann + recall_ann == 0:
-        f1_ann = 0
-    else:
-        f1_ann = (2*precision_ann*recall_ann)/(precision_ann+recall_ann)
-
-    return (f1_cur + f1_ann) / 2
 
 
 scoring_metrics = {
+    'f1_heuristic': f1_heuristic,
     'f1_exact': f1_exact,
-    'f1_partial': f1_partial,
-    'f1_tokenwise': f1_tokenwise,
+    'f1_tokenwise': f1_article_tokenwise,
+    'f1_positional': f1_positional_article_tokenwise,
+    'f1_exact_pygamma': f1_exact_pygamma,
+    'f1_partial_pygamma': f1_partial_pygamma,
+    'f1_tokenwise_pygamma': f1_tokenwise_pygamma,
+
 }
-
-
-
-
-

@@ -47,3 +47,4 @@ def remove_span_doublicates(span_list):
         print('removed the following doublicates:')
         print([x for x in span_list if x not in ret])
     return ret
+

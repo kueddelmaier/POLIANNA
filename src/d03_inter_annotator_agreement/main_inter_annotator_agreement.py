@@ -15,7 +15,6 @@ DEBUG = True
 
 def main():
 
-    
     dataframe_dir = os.path.join(ROOT_DIR,'data/02_processed_to_dataframe', 'preprocessed_dataframe.pkl')    
     stat_df = pd.read_pickle(dataframe_dir)
 

@@ -10,41 +10,59 @@ from tqdm import tqdm
 import collections
 from src.d02_corpus_statistics.corpus import Corpus, Sent_Corpus
 from src.d03_inter_annotator_agreement.scoring_functions import (
-    check_symmetric, create_scoring_matrix, scoring_metrics, unified_gamma, f1_heuristic, f1_exact_brute_force, f1_article_tokenwise, f1_positional_article_tokenwise)
+    check_symmetric, create_scoring_matrix, scoring_metrics, unified_gamma)
 from src.d03_inter_annotator_agreement.span_matching import matching_methods
 from src.experiment_utils.helper_classes import repository, span, token
 
 
 def keep_valid_anotations(span_series):
-  
+
+    """
+    only for testing purposes
+
+    """
+
     len_list = [len(x) for x in span_series if type(x) == list]  
     quantil = np.quantile(len_list, 0.7)
     valid_annotations = [x for x in span_series if type(x) == list and len(x) > 0.3*quantil]
     return valid_annotations
 
 
-def keep_valid_anotations_simple(span_series):
-      
-    #valid_annotations = [x for x in span_series if type(x) == list and len(x) > 2]
-    valid_annotations = [x for x in span_series if type(x) == list]
-    return valid_annotations
 
 def row_to_span_list(row):
+
+    """
+    return a list of spans of all the finished annotators for a specific row
+
+    """
     annotations = row[row['Finished_Annotators']]
     annotations_flat = list(chain.from_iterable(annotations))
     return annotations_flat
 
 def cur_annotator_to_span_list(row, annotator):
+
+    """
+    return a list of spans for the specific annotator and the Curation
+
+    """
     annotations = row[['Curation', annotator]]
     annotations_flat = list(chain.from_iterable(annotations))
     return annotations_flat
 
+
 def _get_curation_annotator_score(row, scoring_metrics_to_calc, total_curation_scores, annotator,  **optional_tuple_properties):
 
+    """
+    Calculates curation-annotator score for all the scores defined in "scoring_metrics_to_calc" for the "annotator". 
+    The "total_curation_scores" are the curation-annotator-scores that have already been calculated, including the new scores. 
+    Since we create a row for each annotator-to-curation and store the different IAA scores as tuples, we need to know at which index to store the scores 
+    Optional tuple properties related to tuple matching, e.g gamma
 
-    spanlist = cur_annotator_to_span_list(row, annotator)
+    """
 
-    if collections.Counter(scoring_metrics_to_calc) == collections.Counter(total_curation_scores): #no score has been calculated yet
+    spanlist = cur_annotator_to_span_list(row, annotator) #get of all curation spans and annotator spans
+
+    if collections.Counter(scoring_metrics_to_calc) == collections.Counter(total_curation_scores): #the scores to calculate == the scores of the no score has been calculated yet
         new_score_array = np.zeros(len(scoring_metrics_to_calc)) #create empty score array
         new_score_indexes = np.arange(len(scoring_metrics_to_calc)) #get the indexes on where to insert the newly calculated scores
     else:
@@ -66,6 +84,7 @@ def _get_curation_annotator_score(row, scoring_metrics_to_calc, total_curation_s
 
 
 def to_curation_colums(row):
+
     """
     Returns all the annotator-to-curation scores of the finished annotators of a specific row.
 
@@ -73,6 +92,7 @@ def to_curation_colums(row):
     return row[['{}_to_curation'.format(annotator) for annotator in row['Finished_Annotators']]]
 
 def _get_span_count_in_row(row, cols):
+
     """
     Returns the sum of items of a row present in the specified columns.
 
@@ -82,6 +102,7 @@ def _get_span_count_in_row(row, cols):
 
 
 def _get_score_article(span_list,  scoring_metric, finished_annotators, **optional_tuple_properties):
+
     """
     Calculates scoring metric based on tuple algo of spanlist of a single article. Optional tuple properties related to tuple matching, e.g gamma
 
@@ -109,7 +130,7 @@ def _get_score_article(span_list,  scoring_metric, finished_annotators, **option
 
     #create tuples:
     else:
-        if scoring_metric not in scoring_metrics and scoring_metric not in ['f1_heuristic', 'f1_exact_brute_force','f1_article_tokenwise', 'f1_article_tokenwise_r', 'f1_positional_article_tokenwise']: ####### MODIFY AND WRITE BETTER #######
+        if scoring_metric not in scoring_metrics:
             raise ValueError('This metric: ', scoring_metric, ' does not exist')
 
         score = 0
@@ -129,26 +150,9 @@ def _get_score_article(span_list,  scoring_metric, finished_annotators, **option
                 #if either is no answer, the score is 1 if they agree, 0 otherwise
                 score += int(len(spans_a1) == len(spans_a2))
 
-
-            elif scoring_metric == 'f1_heuristic':
-                score += f1_heuristic(span_list_annotator_pair, annotator_pair)
-            
-            elif scoring_metric == 'f1_exact_brute_force':
-                score += f1_exact_brute_force(span_list_annotator_pair, annotator_pair)
-
-            elif scoring_metric == 'f1_article_tokenwise':
-                score += f1_article_tokenwise(span_list_annotator_pair, annotator_pair)
-
-            elif scoring_metric == 'f1_article_tokenwise_r':
-                score += f1_article_tokenwise_r(span_list_annotator_pair, annotator_pair)
-
-            elif scoring_metric == 'f1_positional_article_tokenwise':
-                score += f1_positional_article_tokenwise(span_list_annotator_pair, annotator_pair)
-
             else:
-                #span_tuples = matching_methods[tuple_algo](span_list_annotator_pair, **optional_tuple_properties)
-                span_tuples = matching_methods['pygamma'](span_list_annotator_pair, **optional_tuple_properties)
-                score += scoring_metrics[scoring_metric] (span_tuples)
+                score += scoring_metrics[scoring_metric] (span_list_annotator_pair, annotator_pair, **optional_tuple_properties)
+
         
         return score/len(list(combinations(annotators,2)))
 
@@ -157,6 +161,22 @@ def _get_score_article(span_list,  scoring_metric, finished_annotators, **option
 class Inter_Annotator_Agreement(Corpus):
    
     def __init__(self, df, DEBUG = False, front_and_whereas = False):
+        """
+        
+        Inter Annotator Agreement
+        Parameters
+        ----------
+        df : Dataframe
+            Dataframe where each column represents an article
+        
+        DEBUG: bool
+            If True, only the first 10 rows of df are kept. For debug purposes.
+
+        front_and_whereas: bool
+            If True, Front and whereas articles are included in the corpus
+        
+
+        """
 
         super().__init__(df, front_and_whereas)
         
@@ -169,6 +189,7 @@ class Inter_Annotator_Agreement(Corpus):
         
 
     def append_total_score_per_article_parallel(self, scoring_metrics, append_to_df = False, weight_by_tokens = True, **optional_tuple_properties):
+
 
         pandarallel.initialize(progress_bar = True)
         #what if score is singular, so tring but not list?
@@ -183,6 +204,25 @@ class Inter_Annotator_Agreement(Corpus):
 
 
     def append_total_score_per_article(self, scoring_metrics, parallel = False, **optional_tuple_properties):
+
+        """
+        For each IAA score in scoring_metrics, appends a new row that calculates IAA-score for each article.
+
+        Parameters
+        ----------
+
+        scoring metrics: str or list of str
+             IAA-scores to calculate, either a single score or a list of scores. Score must be defined in scoring_functions.py
+
+        parallel: bool
+            If True, pandarallel library is used
+
+        
+        optional_tuple_properties: optional
+            Properties related to pygamma such as category_list or cat_dissimilarity_matrix for either span matching or pygamma score.
+            For example use case see Inter_Annotator_Agreement Notebook
+
+        """
 
         if isinstance(scoring_metrics, str):
             scoring_metrics = [scoring_metrics]
@@ -218,6 +258,25 @@ class Inter_Annotator_Agreement(Corpus):
     def append_score_to_curation(self, scoring_metrics, parallel = False, **optional_tuple_properties):
         # add if score alrewasdy in df then dont calculate
 
+        """
+        For each IAA score in scoring_metrics, appends a new row that calculates to-curation score for each article and for each score defined in scoring_metrics.
+        Scores are stored as touples.
+
+        Parameters
+        ----------
+
+        scoring metrics: str or list of str
+             IAA-scores to calculate, either a single score or a list of scores. Score must be defined in scoring_functions.py
+
+        parallel: bool
+            If True, pandarallel library is used
+
+        
+        optional_tuple_properties: optional
+            Properties related to pygamma such as category_list or cat_dissimilarity_matrix for either span matching or pygamma score.
+            For example use case see Inter_Annotator_Agreement Notebook
+
+        """
         if isinstance(scoring_metrics, str):
             scoring_metrics = [scoring_metrics]
 
@@ -243,8 +302,32 @@ class Inter_Annotator_Agreement(Corpus):
         
 
     def get_total_score_df(self, scoring_metrics = 'all', annotator = 'all', weight_by = 'Tokens'):
-        # if no score calculated yet, append score
-        #insert here
+
+        """
+        Calculates a weighted average of the score columns in the DataFrame. Only possible if the score column exists in the DataFrame. 
+        If not, first append score with "append_total_score_per_article". By default, all the scores are calculated, but can be specified with "scoring_metrics".
+
+        Parameters
+        ----------
+
+        scoring metrics: str or list of str
+             IAA-scores to calculate, either a single score or a list of scores. Score must be a column of the DataFrame.
+
+        annotator: str
+            Either 'all' or a specific annotator. Default is 'all', calulates average over all articles. 
+            If specific annotator, calculates weighted IAA average over subset of DataFrame where the specific annotator in "Finished Annotators".
+
+        
+        weight_by: {'no_weighting', 'Tokens', 'Spans'}
+            no_weighting: Calculates simple average over all articles
+            Tokens: Weights each article by number of Tokens
+            Spans: Weights each article by number of spans 
+
+        Returns
+        ----------
+        out : dict
+            Score dict containing the weighted averages for all the scores defined in "scoring_metrics"
+            """
 
         if scoring_metrics == 'all':
             scoring_metrics = ['_'.join([col, 'score']) for col in self.calculated_iaa_scores]
@@ -292,7 +375,6 @@ class Inter_Annotator_Agreement(Corpus):
             return score_dict
 
         
-
         elif weight_by == 'Tokens':
             total_n_tokens = len(list(chain.from_iterable(df_annotator['Tokens'])))
 
@@ -321,6 +403,28 @@ class Inter_Annotator_Agreement(Corpus):
 
 
     def get_to_curation_score(self, weight_by = 'Tokens'):
+
+        """
+        Calculates a weighted average of the all the to-curation scores in the DataFrame for each annotator. 
+        I.e for each annotator and each score we calculate a weighted to-curation score.
+        Note that scores first need to be appended to DataFrame with "append_score_to_curation". 
+
+        Parameters
+        ----------
+        
+        weight_by: {'no_weighting', 'Tokens', 'Spans'}
+            no_weighting: Calculates simple average over all articles
+            Tokens: Weights each article by number of Tokens
+            Spans: Weights each article by number of spans 
+        
+
+        Returns
+        ----------
+        out : dict
+            Named dict containing a score-dict for each annotator.
+            For each annotor get a dict with weighted average to-curation score for all to-curation scores in DataFrame.
+            
+        """
         score_dict = {}
         for annotator in self.finished_annotators:
             row_name = '{}_to_curation'.format(annotator)
@@ -348,6 +452,26 @@ class Inter_Annotator_Agreement(Corpus):
 
 
     def get_to_curation_score_total(self, weight_by = 'Tokens'):
+
+        """
+        Calculates a weighted average of the all the to-curation scores in the DataFrame, averaged over all annotators. Only possible if the score column exists in the DataFrame. 
+        If not, first append score with "append_score_to_curation". 
+
+        Parameters
+        ----------
+        
+        weight_by: {'no_weighting', 'Tokens', 'Spans'}
+            no_weighting: Calculates simple average over all articles
+            Tokens: Weights each article by number of Tokens
+            Spans: Weights each article by number of spans 
+        
+
+        Returns
+        ----------
+        out : dict
+            Score dict containing the weighted averages for all the to-curation scores defined in "scoring_metrics", weighted over all annotators.
+            
+        """
         score_dict = {}
         df_annotator = self.df
 
@@ -362,15 +486,12 @@ class Inter_Annotator_Agreement(Corpus):
             return dict(zip(self.calculated_curation_scores, scores.T))
 
         elif weight_by == 'Spans':
-            total_n_spans = df_annotator.apply(lambda row:  _get_span_count_in_row(row, cols = row['Finished_Annotators'] + ['Curation'] * 2), axis=1).sum()
-            scores = df_annotator.apply(lambda row: _get_span_count_in_row(row, cols = row['Finished_Annotators'] + ['Curation']* 2) * to_curation_colums(row).mean() / total_n_spans, axis=1).sum()
+            total_n_spans = df_annotator.apply(lambda row:  _get_span_count_in_row(row, cols = row['Finished_Annotators'] + ['Curation'] * len(row['Finished_Annotators'])), axis=1).sum() #
+            scores = df_annotator.apply(lambda row: _get_span_count_in_row(row, cols = row['Finished_Annotators'] + ['Curation']* len(row['Finished_Annotators'])) * to_curation_colums(row).mean() / total_n_spans, axis=1).sum()
             return dict(zip(self.calculated_curation_scores, scores.T))            
 
         return score_dict
 
-
-
-        
                 
     def get_score_spanlist(self, conditional_rep, annotators , scoring_metric, item = None, value = None, weight_by = 'Spans', **optional_tuple_properties):
 
@@ -401,7 +522,8 @@ class Inter_Annotator_Agreement(Corpus):
         optional_tuple_properties: Optional tuple properties for pygamma, see pygamma
 
 
-        Returns:
+        Returns
+        ----------
         out: tuple 
             tuple[0]: list, spanlist of all the spans that are matched by the arguments, similar to get_span_list.
             tuple[1]: float, the IAA score for the respective spanlist.
@@ -411,7 +533,6 @@ class Inter_Annotator_Agreement(Corpus):
 
         span_list = self.get_span_list(conditional_rep, annotators, item , value)
  
-
         if annotators == 'all':
             annotators = self.annotators + ['Curation']
         
@@ -444,7 +565,6 @@ class Inter_Annotator_Agreement(Corpus):
             if repo_row['Article_State'] == 'CURATION_FINISHED':
                 finished_annotators_repo = finished_annotators_repo + ['Curation'] # if the curation is finished, we can append the annotor 'Curation' to the list of finsihed annotators
 
-
             finished_annotators_span_list_repo = [ann for ann in finished_annotators_repo if ann in annotators] # the get all the annotators for this specific rep that are part of the spanlist and a finsihed annotator for this specific rep
   
             if len(finished_annotators_span_list_repo) < 2: # for this repo there are less than two finished annotators in the spanlist
@@ -456,7 +576,6 @@ class Inter_Annotator_Agreement(Corpus):
 
             span_list_repo = [span_ for span_ in span_list if span_.rep == repo]
             
-
 
             n_tokens = len([span_.tokens for span_ in span_list_repo])
 
@@ -482,7 +601,6 @@ class Inter_Annotator_Agreement(Corpus):
                
             elif weight_by == 'Spans':
   
-
                 n_spans = len(span_list_repo)
                 total_score += _get_score_article(span_list_repo , scoring_metric, finished_annotators_span_list_repo, **optional_tuple_properties) * n_spans
                 normalization_count += n_spans
@@ -497,10 +615,6 @@ class Inter_Annotator_Agreement(Corpus):
             if normalization_count == 0 and weight_by == 'Spans': # Even though at least one article contained two finsihed annos, the normalization count is zero. 
                 return 1                                          # That means that for all articles, both have not annotated a single span, even though there where in the finished annotators. So the score is 1
 
-
-
-
-          
         return span_list, total_score / normalization_count
     
     

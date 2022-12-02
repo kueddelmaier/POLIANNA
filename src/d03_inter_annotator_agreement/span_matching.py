@@ -14,7 +14,7 @@ def create_tuples_pygamma(span_list, **dissimilarity_properties):
     #now retrieve spantuples
     total_tuples = []
 
-    for un in best_alignment.unitary_alignments: #loop over all the unitarya aligments 
+    for un in best_alignment.unitary_alignments: #loop over all the unitary aligments 
         list_tuple = []
         for n_tuple in un._n_tuple: #loop over all the units in unitary aligment          
             if n_tuple[1] == None: #in case the unit is a epty unit, create a None-span
@@ -43,19 +43,5 @@ matching_methods = {
     'pygamma': create_tuples_pygamma
 }
 
-def create_heuristic_matching(span_list, **dissimilarity_properties):
-    annotators = list(set([span_.annotator for span_ in span_list]))
-    gold = annotators[0]
-    other = annotators[1]
-
-    gold_spans = [span_ for span_ in span_list if span_.annotator == gold]
-    other_spans = [span_ for span_ in span_list if span_.annotator == other]
-
-    for gold_span_ in gold_spans:
-
-        #get all the possible candidates, they have to overlap and the tag has to be the same
-        possible_matchings = [other_span_ for other_span_ in other_spans if gold_span_.start < other_span_.stop and other_span_.start < gold_span_.stop and gold_span_.tag_ == other_span_.tag_]
-
-        #match to the one with 
 
         
