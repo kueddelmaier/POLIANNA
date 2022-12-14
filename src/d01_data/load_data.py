@@ -282,7 +282,6 @@ if __name__ == "__main__":
     if not os.path.exists(args.out_dir):
         os.makedirs(args.out_dir)
 
-
     processed_out_dir = os.path.join(args.out_dir,'02_processed_to_dataframe')
 
     if not os.path.exists(processed_out_dir):

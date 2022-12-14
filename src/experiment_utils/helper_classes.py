@@ -87,7 +87,7 @@ class token:
     
         if annotators == 'all':
             return [span_.tag_ for span_  in self.spans]
-
+            
         if annotators == 'annotators':
             return [span_.tag_ for span_  in self.spans if 'Curation' not in span_.annotator]
 

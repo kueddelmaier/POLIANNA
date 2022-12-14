@@ -20,7 +20,7 @@ def main():
 
     Evaluator = Inter_Annotator_Agreement(stat_df, DEBUG = DEBUG)
 
-    tuple_algos= ['pygamma']
+    
     scoring_metrics = ['f1_exact', 'f1_tokenwise']
 
     Evaluator.get_total_score(scoring_metrics, tuple_algos, append_to_df = True, weight_by_tokens = True)
@@ -30,7 +30,6 @@ def main():
     #start_time = time.time()
     #Evaluator.get_total_score(scoring_method = 'unified_gamma', append_to_df = True)
     #print("--- %s seconds ---" % (time.time() - start_time))
-
 
 if __name__ == "__main__":
     main()

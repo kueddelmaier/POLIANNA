@@ -1,7 +1,7 @@
 from itertools import chain
 import collections
 
-from jinja2 import pass_context
+
 from definitions import df_annotation_marker
 import pandas as pd
 import copy
