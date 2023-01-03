@@ -13,18 +13,20 @@ This README is not intended to be self-explanatory, but rather should be read to
 
 [I still need to figure out a way to create one environment that works for every funtion. For the moment, there is a requirements.text]
 
-### Virtual Environment
 
-```bash
-python -m venv env
-source env/bin/activate
-pip install -r requirements.txt
-```
 
 ### Conda
 
 ```bash
-conda create --name <env> --file requirements.txt
+conda env create -f environment.yml
+```
+Then manually install the pygamma package over pip
+
+
+
+```bash
+conda activate POLIANNA
+pip install git+https://github.com/bootphon/pygamma-agreement.git
 ```
 
 ## Data
