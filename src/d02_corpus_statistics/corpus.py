@@ -76,12 +76,12 @@ class Corpus:
         ----------
         conditional_rep: repository
 
-        item: {'layer', 'type', 'tag'}, optional
+        item: {'layer', 'feature', 'tag'}, optional
             If item and value are not specified, no filter is applied and thus all the spans matching the conditional rep are returned.
 
         value: string, optional
-            The value corresponding to the desired 'layer', 'type' or 'tag'.
-            E.g item = 'layer' and value = 'Policydesigncharacteristics' or item = 'type and value ='Compliance' and item = 'tag' and value = 'Form_monitoring'.
+            The value corresponding to the desired 'layer', 'feature' or 'tag'.
+            E.g item = 'layer' and value = 'Policydesigncharacteristics' or item = 'feature and value ='Compliance' and item = 'tag' and value = 'Form_monitoring'.
 
         """
 
@@ -98,12 +98,11 @@ class Corpus:
         if item == None and value == None:
             return [x for x in iterator if type(x)!= str]
         if item == 'layer':
-            return [x for x in iterator if type(x)!= str and x.layer_ == value]
-        if item == 'type':
-            return [x for x in iterator if type(x)!= str and x.type_ == value]
+            return [x for x in iterator if type(x)!= str and x.layer == value]
+        if item == 'feature':
+            return [x for x in iterator if type(x)!= str and x.feature == value]
         if item == 'tag':
-            return [x for x in iterator if type(x)!= str and x.tag_ == value]
-
+            return [x for x in iterator if type(x)!= str and x.tag == value]
             
     
     def get_span_count(self, conditional_rep, annotators = 'Curation', item = None, value = None):
@@ -115,12 +114,12 @@ class Corpus:
         ----------
         conditional_rep: repository
 
-        item: {'layer', 'type', 'tag}, optional
+        item: {'layer', 'feature', 'tag}, optional
             If item and value are not specified, no filter is applied and thus all the tags matching the conditional rep are returned.
 
         value: string, optional
-            The value corresponding to the desired 'layer', 'type' or 'tag'.
-            E.g item = 'layer' and value = 'Policydesigncharacteristics' or item = 'type and value ='Compliance' and item = 'tag' and value = 'Form_monitoring'.
+            The value corresponding to the desired 'layer', 'feature' or 'tag'.
+            E.g item = 'layer' and value = 'Policydesigncharacteristics' or item = 'feature and value ='Compliance' and item = 'tag' and value = 'Form_monitoring'.
 
         """
         return len(self.get_span_list(conditional_rep, annotators, item, value))    
@@ -135,12 +134,12 @@ class Corpus:
         ----------
         conditional_rep: repository
 
-        item: {'layer', 'type', 'tag}, optional
+        item: {'layer', 'feature', 'tag}, optional
             If item and value are not specified, no filter is applied and thus all the spans matching the conditional rep are returned.
 
         value: string, optional
-            The value corresponding to the desired 'layer', 'type' or 'tag'.
-            E.g item = 'layer' and value = 'Policydesigncharacteristics' or item = 'type and value ='Compliance' and item = 'tag' and value = 'Form_monitoring'.
+            The value corresponding to the desired 'layer', 'feature' or 'tag'.
+            E.g item = 'layer' and value = 'Policydesigncharacteristics' or item = 'feature and value ='Compliance' and item = 'tag' and value = 'Form_monitoring'.
 
         return_format: {'dict', 'list'}
 
@@ -181,6 +180,7 @@ class Corpus:
         token_iterator = self._get_iterator_conditional_rep(conditional_rep, 'Tokens')
         return list(token_iterator)
 
+
     def get_token_count_from_repository(self, conditional_rep):
 
         """
@@ -204,12 +204,12 @@ class Corpus:
         ----------
         conditional_rep: repository
 
-        item: {'layer', 'type', 'tag}, optional
+        item: {'layer', 'feature', 'tag}, optional
             If item and value are not specified, no filter is applied and thus all the spans matching the conditional rep are returned.
 
         value: string, optional
-            The value corresponding to the desired 'layer', 'type' or 'tag'.
-            E.g item = 'layer' and value = 'Policydesigncharacteristics' or item = 'type and value ='Compliance' and item = 'tag' and value = 'Form_monitoring'.
+            The value corresponding to the desired 'layer', 'feature' or 'tag'.
+            E.g item = 'layer' and value = 'Policydesigncharacteristics' or item = 'feature and value ='Compliance' and item = 'tag' and value = 'Form_monitoring'.
 
         """
 
@@ -226,12 +226,12 @@ class Corpus:
         ----------
         conditional_rep: repository
 
-        item: {'layer', 'type', 'tag}, optional
+        item: {'layer', 'feature', 'tag}, optional
             If item and value are not specified, no filter is applied and thus all the spans matching the conditional rep are returned.
 
         value: string, optional
-            The value corresponding to the desired 'layer', 'type' or 'tag'.
-            E.g item = 'layer' and value = 'Policydesigncharacteristics' or item = 'type and value ='Compliance' and item = 'tag' and value = 'Form_monitoring'.
+            The value corresponding to the desired 'layer', 'feature' or 'tag'.
+            E.g item = 'layer' and value = 'Policydesigncharacteristics' or item = 'feature and value ='Compliance' and item = 'tag' and value = 'Form_monitoring'.
 
         """
         return len(self.get_tokens_from_span_list(conditional_rep, annotators, item, value)) 
@@ -246,12 +246,12 @@ class Corpus:
         ----------
         conditional_rep: repository
 
-        item: {'layer', 'type', 'tag}, optional
+        item: {'layer', 'feature', 'tag}, optional
             If item and value are not specified, no filter is applied and thus all the spans matching the conditional rep are returned.
 
         value: string, optional
-            The value corresponding to the desired 'layer', 'type' or 'tag'.
-            E.g item = 'layer' and value = 'Policydesigncharacteristics' or item = 'type and value ='Compliance' and item = 'tag' and value = 'Form_monitoring'.
+            The value corresponding to the desired 'layer', 'feature' or 'tag'.
+            E.g item = 'layer' and value = 'Policydesigncharacteristics' or item = 'feature and value ='Compliance' and item = 'tag' and value = 'Form_monitoring'.
 
         """
         span_list = self.get_span_list(conditional_rep, annotators, item, value) #get the spanlist of all the span that match search criteria
@@ -266,12 +266,12 @@ class Corpus:
         Parameters
         ----------
         conditional_rep: repository
-        item: {'layer', 'type', 'tag}, optional
+        item: {'layer', 'feature', 'tag}, optional
             If item and value are not specified, no filter is applied and thus all the spans matching the conditional rep are returned.
 
         value: string, optional
-            The value corresponding to the desired 'layer', 'type' or 'tag'.
-            E.g item = 'layer' and value = 'Policydesigncharacteristics' or item = 'type and value ='Compliance' and item = 'tag' and value = 'Form_monitoring'.
+            The value corresponding to the desired 'layer', 'feature' or 'tag'.
+            E.g item = 'layer' and value = 'Policydesigncharacteristics' or item = 'feature and value ='Compliance' and item = 'tag' and value = 'Form_monitoring'.
         """
         span_list = self.get_span_list(conditional_rep, annotators, item, value) #get the spanlist of all the span that match search criteria
         span_iterator = [x.text for x in span_list] #retrieve all the span text from the span list
@@ -279,7 +279,7 @@ class Corpus:
         return dict(sorted(span_counter_dict.items(), key=lambda item: item[1], reverse=True))  #sort the dict by counts
 
 
-    def get_label_count_per_token_distro(self, conditional_rep, return_format = 'dict'):
+    def get_label_count_per_token_distro(self, conditional_rep, annotators = 'Curation', return_format = 'dict'):
 
         """
         Returns the distribution of label counts per token based on a conditional rep in descending order.
@@ -288,19 +288,19 @@ class Corpus:
         Parameters
         ----------
         conditional_rep: repository
-
-        return_format: {'dict', 'list'}
+        annotators: {'Curation', 'Annotation', 'All'}, optional
+        return_format: {'dict', 'list'}, optional
 
         """
         token_iterator = self._get_iterator_conditional_rep(conditional_rep, 'Tokens')
-        token_counter_dict = collections.Counter([x.tag_count for x in token_iterator]) #get a list the text of the token, count the different elements and create a dict
-        label_counter_list = [x.tag_count for x in token_iterator]
         
         if return_format == 'dict':
             #return dict(sorted(token_counter_dict.items(), key=lambda item: item[1], reverse=True))
+            token_counter_dict = collections.Counter([x.get_span_count(annotators = annotators) for x in token_iterator]) #get a list the text of the token, count the different elements and create a dict
             return dict(sorted(token_counter_dict.items()))
         
         if return_format == 'list':
+            label_counter_list = [x.get_span_count(annotators = annotators) for x in token_iterator]
             distro_list = []
             for i in range(0,max(label_counter_list)+1):
                 distro_list.append(label_counter_list.count(i))
@@ -320,7 +320,7 @@ class Corpus:
         """
 
         token_list = self.get_token_list_from_repository(conditional_rep)
-        return [tok for tok in token_list if tok.tag_count == label_count]
+        return [tok for tok in token_list if tok.get_span_count() == label_count]
     
     def keep_only_finished_articles(self):
 
@@ -368,7 +368,7 @@ class Corpus:
             raise ValueError('element not found')
             
         elif len(target) > 1:
-            raise ValueError('more than one elemtn found')
+            raise ValueError('more than one element found')
         else:
             self.df.loc[repo.index_name]['Curation'].remove(target[0])
 

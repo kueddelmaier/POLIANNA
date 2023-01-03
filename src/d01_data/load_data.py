@@ -1,4 +1,3 @@
-
 import json
 import zipfile
 import os
@@ -7,6 +6,9 @@ import pandas as pd
 import numpy as np
 import argparse
 import logging
+
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 import data_utils as utils
 
@@ -163,32 +165,32 @@ if __name__ == "__main__":
                             
                         for annotation in data['_views']['_InitialView'][category]: #loop trough all the spans
                             
-                            type_ = list(annotation.keys())[-1]     #this part handles empty annotations. The last entry of the dict usually contains the type and the span.
+                            feature = list(annotation.keys())[-1]     #this part handles empty annotations. The last entry of the dict usually contains the feature and the span.
                                                                     #for empty spans, the last entry is a integer
-                            if type(type_) != str:                  
-                                type_ = ''
+                            if type(feature) != str:                  
+                                feature = ''
                             
-                            _tag_ = list(annotation.values())[-1]
-                            if type(_tag_) != str:
-                                _tag_ = ''
+                            tag = list(annotation.values())[-1]
+                            if type(tag) != str:
+                                tag = ''
                             try:    
                                 start = annotation['begin']
                                 stop = annotation['end']
                             except:
-                                logging.info(f"Span of folder {subdir_index}, annotator {annotator}, catergory {category}, type {type_} and tag {_tag_} could not be processed")
+                                logging.info(f"Span of folder {subdir_index}, annotator {annotator}, catergory {category}, feature {feature} and tag {tag} could not be processed")
                                 pass
                             
                             span_tokens = [x for x in token_list if  x.start >= start and x.stop <= stop]
-                            len_doubles = len([dspan for dspan in spanlist if dspan.tag_ == _tag_ and dspan.start == start and dspan.stop == stop])
+                            len_doubles = len([dspan for dspan in spanlist if dspan.tag == tag and dspan.start == start and dspan.stop == stop])
                             if len_doubles != 0:
                                 continue
                             span_id =  ann_letter + str(span_counter[annotator])
                             
                             if args.anonymous_annotators:
-                                span_ = span(span_id, category, type_, _tag_ , start ,stop , sentence[start:stop], span_tokens, rep, return_annotator_letter(annotator))
+                                span_ = span(span_id, category, feature, tag , start ,stop , sentence[start:stop], span_tokens, rep, return_annotator_letter(annotator))
                             
                             else:
-                                span_ = span(span_id, category, type_, _tag_ , start ,stop , sentence[start:stop], span_tokens, rep, annotator)
+                                span_ = span(span_id, category, feature, tag , start ,stop , sentence[start:stop], span_tokens, rep, annotator)
 
                             spanlist.append(span_)
                             [tok.add_span(span_) for tok in span_tokens]
@@ -242,27 +244,27 @@ if __name__ == "__main__":
                         
                     for annotation in data['_views']['_InitialView'][category]: #loop trough all the spans
                         
-                        type_ = list(annotation.keys())[-1]     #this part handles empty annotations. The last entry of the dict usually contains the type and the span.
+                        feature = list(annotation.keys())[-1]     #this part handles empty annotations. The last entry of the dict usually contains the feature and the span.
                                                                 #for empty spans, the last entry is a integer
-                        if type(type_) != str:                  
-                            type_ = ''
+                        if type(feature) != str:                  
+                            feature = ''
                         
-                        _tag_ = list(annotation.values())[-1]
-                        if type(_tag_) != str:
-                            _tag_ = ''
+                        tag = list(annotation.values())[-1]
+                        if type(tag ) != str:
+                            tag  = ''
                         
                         try:
                             
                             start = annotation['begin']
                             stop = annotation['end']
                         except:
-                            logging.info(f"Span of folder {subdir_index}, annotator Curation , catergory {category}, type {type_} and tag {_tag_} could not be processed")
+                            logging.info(f"Span of folder {subdir_index}, annotator Curation , catergory {category}, feature {feature} and tag {tag} could not be processed")
 
                         span_tokens = [x for x in token_list if  x.start >= start and x.stop <= stop]
                         
 
                         span_id =  ann_letter + str(cur_count)
-                        span_ =  span(span_id, category, type_, _tag_ , start ,stop , sentence[start:stop], span_tokens, rep, 'Curation') #create span
+                        span_ =  span(span_id, category, feature, tag  , start ,stop , sentence[start:stop], span_tokens, rep, 'Curation') #create span
                         spanlist.append(span_) #append span to the spanlist of this article
                         [tok.add_span(span_) for tok in span_tokens ] #assign this span to all the tokens that belong to this span
                         cur_count += 1
@@ -290,7 +292,7 @@ if __name__ == "__main__":
     #out_dir_pkl = os.path.join(ROOT_DIR,'data/02_processed_to_dataframe', 'preprocessed_dataframe_anonymous.pkl')
     out_dir_pkl = os.path.join(ROOT_DIR,'data/02_processed_to_dataframe', 'preprocessed_dataframe_test.pkl')
     stat_df.to_pickle(out_dir_pkl)
-    out_dir_csv = os.path.join(ROOT_DIR,'data/02_processed_to_dataframe', 'preprocessed_dataframe_anonymous.csv')
+    out_dir_csv = os.path.join(ROOT_DIR,'data/02_processed_to_dataframe', 'preprocessed_dataframe_test.csv')
     stat_df.to_csv(out_dir_csv)
 
     print('out_dir: ', out_dir_pkl)

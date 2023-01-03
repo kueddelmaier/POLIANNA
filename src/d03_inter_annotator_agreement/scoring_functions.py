@@ -159,7 +159,7 @@ def unified_gamma(span_list, **dissimilarity_properties):
 
     continuum = Continuum()
     for spanlist_span in span_list:
-        continuum.add(spanlist_span.annotator, Segment(spanlist_span.start, spanlist_span.stop), spanlist_span.tag_)
+        continuum.add(spanlist_span.annotator, Segment(spanlist_span.start, spanlist_span.stop), spanlist_span.tag)
     cat_dissim = PrecomputedCategoricalDissimilarity(categories = dissimilarity_properties.get('category_list',continuum.categories), matrix = dissimilarity_properties.get('cat_dissimilarity_matrix', None))
     pos_dissim = PositionalSporadicDissimilarity()
     dissimilarity = CombinedCategoricalDissimilarity(cat_dissim=cat_dissim, pos_dissim = pos_dissim, alpha=dissimilarity_properties.get('alpha', 1), beta=dissimilarity_properties.get('beta', 1), delta_empty=1.0)
@@ -199,7 +199,7 @@ def unified_gamma_old(span_list, **dissimilarity_properties):
     
     continuum = Continuum()
     for spanlist_span in span_list:
-        continuum.add(spanlist_span.annotator, Segment(spanlist_span.start, spanlist_span.stop), spanlist_span.tag_)
+        continuum.add(spanlist_span.annotator, Segment(spanlist_span.start, spanlist_span.stop), spanlist_span.tag)
     dissim = CombinedCategoricalDissimilarity(categories = dissimilarity_properties.get('category_list',continuum.categories), alpha=dissimilarity_properties.get('alpha', 1),   beta=dissimilarity_properties.get('beta', 1), cat_dissimilarity_matrix = dissimilarity_properties.get('cat_dissimilarity_matrix', None))
     try: 
         gamma_results = continuum.compute_gamma(dissim)
@@ -246,9 +246,9 @@ def f1_exact_pygamma(span_list_annotator_pair, annotator_pair, **optional_tuple_
     # for a given tuple, treat tuple[0] as prediciton and tuple[1] as gold standart since the score is symmetric
     # note that all the spans of a certain annotator that arre missing in the counterpart are matched to a "None" Tag
 
-    exact = sum([n_tuple[0].exact_match(n_tuple[1]) for n_tuple in tuple_list if n_tuple[0].tag_ != None and n_tuple[1].tag_ != None])
-    act = len([n_tuple[0] for n_tuple in tuple_list if n_tuple[0].tag_ != None ]) # equal to all the spans of the prediction = tp + fp
-    pos = len([n_tuple[1] for n_tuple in tuple_list if n_tuple[1].tag_ != None ]) # equal to all the spans of the gold standart = tp + fn
+    exact = sum([n_tuple[0].exact_match(n_tuple[1]) for n_tuple in tuple_list if n_tuple[0].tag != None and n_tuple[1].tag != None])
+    act = len([n_tuple[0] for n_tuple in tuple_list if n_tuple[0].tag != None ]) # equal to all the spans of the prediction = tp + fp
+    pos = len([n_tuple[1] for n_tuple in tuple_list if n_tuple[1].tag != None ]) # equal to all the spans of the gold standart = tp + fn
     return f1(exact, act, pos)
 
 def f1_partial_pygamma(span_list_annotator_pair, annotator_pair, **optional_tuple_properties):
@@ -257,9 +257,9 @@ def f1_partial_pygamma(span_list_annotator_pair, annotator_pair, **optional_tupl
     # for a given tuple, treat tuple[0] as prediciton and tuple[1] as gold standart since the score is symmetric
     # note that all the spans of a certain annotator that are missing in the counterpart are matched to a "None" Tag
 
-    partial = sum([n_tuple[0].partial_match(n_tuple[1]) for n_tuple in tuple_list if n_tuple[0].tag_ != None and n_tuple[1].tag_ != None])
-    act = len([n_tuple[0] for n_tuple in tuple_list if n_tuple[0].tag_ != None ]) # equal to all the spans of the prediction = tp + fp
-    pos = len([n_tuple[1] for n_tuple in tuple_list if n_tuple[1].tag_ != None ]) # equal to all the spans of the gold standart = tp + fn
+    partial = sum([n_tuple[0].partial_match(n_tuple[1]) for n_tuple in tuple_list if n_tuple[0].tag != None and n_tuple[1].tag != None])
+    act = len([n_tuple[0] for n_tuple in tuple_list if n_tuple[0].tag != None ]) # equal to all the spans of the prediction = tp + fp
+    pos = len([n_tuple[1] for n_tuple in tuple_list if n_tuple[1].tag != None ]) # equal to all the spans of the gold standart = tp + fn
 
     return f1(partial, act, pos)
 
@@ -311,8 +311,7 @@ def f1_article_tokenwise(span_list, annotator_pair, **dissimilarity_properties):
     
         for ann_span in annotator_spans:
             for ann_tok in ann_span.tokens:
-                tok_matchings = [cur_tok for cur_tok in curation_tokens if ann_tok == cur_tok and ann_span.tag_ in cur_tok.get_token_tags(annotators = annotator_pair[i])]
-                
+                tok_matchings = [cur_tok for cur_tok in curation_tokens if ann_tok == cur_tok and ann_span.tag in cur_tok.get_token_tags(annotators = annotator_pair[i])]
                 if len(tok_matchings) >= 1:
                     tp += 1
 
@@ -343,7 +342,7 @@ def f1_exact(span_list, annotator_pair, **dissimilarity_properties):
         
         for ann_span in annotator_spans:
             # all the spans that overlap and have the same ## To Do : use f1 function as is f1_tokenwise_article ##tag
-            span_matchings = [cur_span for cur_span in curation_spans if cur_span.start == ann_span.start and cur_span.stop == ann_span.stop and cur_span.tag_ == ann_span.tag_]
+            span_matchings = [cur_span for cur_span in curation_spans if cur_span.start == ann_span.start and cur_span.stop == ann_span.stop and cur_span.tag == ann_span.tag]
             
             if len(span_matchings) >= 1:
                 tp += 1
@@ -374,7 +373,7 @@ def f1_heuristic(span_list, annotator_pair, **dissimilarity_properties):
         
         for ann_span in annotator_spans:
             # all the spans that overlap and have the same tag
-            span_matchings = [cur_span for cur_span in curation_spans if cur_span.start < ann_span.stop and cur_span.stop > ann_span.start and cur_span.tag_ == ann_span.tag_ ]
+            span_matchings = [cur_span for cur_span in curation_spans if cur_span.start < ann_span.stop and cur_span.stop > ann_span.start and cur_span.tag == ann_span.tag ]
             
          
             if len(span_matchings) >= 1:

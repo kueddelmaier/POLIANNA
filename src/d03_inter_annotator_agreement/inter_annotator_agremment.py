@@ -541,12 +541,12 @@ class Inter_Annotator_Agreement(Corpus):
         scoring_metric: string
             Which IAA score to calculate
 
-        item: {'layer', 'type', 'tag'}, optional
+        item: {'layer', 'feature', 'tag'}, optional
             If item and value are not specified, no filter is applied and thus all the spans matching the conditional rep are returned.
 
         value: string, optional
-            The value corresponding to the desired 'layer', 'type' or 'tag'.
-            E.g item = 'layer' and value = 'Policydesigncharacteristics' or item = 'type and value ='Compliance' and item = 'tag' and value = 'Form_monitoring'.
+            The value corresponding to the desired 'layer', 'feature' or 'tag'.
+            E.g item = 'layer' and value = 'Policydesigncharacteristics' or item = 'feature and value ='Compliance' and item = 'tag' and value = 'Form_monitoring'.
 
         weight_by: {'no_weighting', 'Tokens', 'Spans'}
 

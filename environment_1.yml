@@ -1,0 +1,14 @@
+name: POLIANNA
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - pandas
+  - python=3.10
+  - numpy
+  - matplotlib
+  - pandarallel
+  - tqdm
+  - ipykernel
+  - ipywidgets
+

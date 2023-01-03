@@ -7,7 +7,7 @@ def create_tuples_pygamma(span_list, **dissimilarity_properties):
 
     continuum = Continuum()
     for spanlist_span in span_list:
-        continuum.add(spanlist_span.annotator, Segment(spanlist_span.start, spanlist_span.stop), spanlist_span.tag_)
+        continuum.add(spanlist_span.annotator, Segment(spanlist_span.start, spanlist_span.stop), spanlist_span.tag)
     dissim = CombinedCategoricalDissimilarity(categories = dissimilarity_properties.get('category_list_matching',continuum.categories), alpha=dissimilarity_properties.get('alpha', 1),   beta=dissimilarity_properties.get('beta', 1), cat_dissimilarity_matrix = dissimilarity_properties.get('cat_dissimilarity_matrix_matching', None))
     best_alignment = continuum.get_best_alignment(dissim)
     
@@ -21,7 +21,7 @@ def create_tuples_pygamma(span_list, **dissimilarity_properties):
                 tuple_span = span(annotator = n_tuple[0])
                 
             else: #in case the unit is not empty, find the span in spanlist that corresponds to this unit
-                matches = [span_ for span_ in span_list if span_.annotator == n_tuple[0] and span_.tag_ == n_tuple[1].annotation and span_.start == n_tuple[1].segment.start and span_.stop == n_tuple[1].segment.end]
+                matches = [span_ for span_ in span_list if span_.annotator == n_tuple[0] and span_.tag == n_tuple[1].annotation and span_.start == n_tuple[1].segment.start and span_.stop == n_tuple[1].segment.end]
                 if len(matches) != 1:
                     print('Matches:')
                     print(matches)

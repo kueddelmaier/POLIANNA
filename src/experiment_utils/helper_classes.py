@@ -4,6 +4,13 @@ def getOverlap(a, b):
     return max(0, min(a[1], b[1]) - max(a[0], b[0]))
 
 class repository: 
+    """
+    A repository is a class that contains all the information about a specific document.
+    It is used to identify a document in the dataframe and to identify the document in the file system.
+    A repository is characterized by the policy, title, chapter, section, and article. 
+    If the repository is a sentence repository, it also contains the sentence number.
+
+    """
     def __init__(self, policy = None, title = None, chapter = None, section = None, article = None, sentence = None, index_name = None):
         self.policy = policy
         self.title = title
@@ -26,8 +33,11 @@ class repository:
 
 
     @classmethod
-    def from_repository_name(cls, rep_str):                #2nd initializer that creates a repository object directly from a repository string e.g 'EU_32008R1099_Title_0_Chapter_0_Section_0_Article_03.txt'
-        folder_parts = rep_str.split('_')                  #split the string at '_' into parts 
+    def from_repository_name(cls, rep_str):
+        """
+        2nd initializer that creates a repository object directly from a repository string e.g 'EU_32008R1099_Title_0_Chapter_0_Section_0_Article_03.txt
+        """                
+        folder_parts = rep_str.split('_')                  #split the stchecks if the search-criteria defined in repository 'other' is matching the the current repository ring at '_' into parts 
         policy = folder_parts[0] + '_' + folder_parts[1]   #we only want to split at every 2nd '_', so merge the 1. and 2., 3. and 4. again 
         
         if folder_parts[2] in  ['front', 'Whereas']:       #exeption for the 'whereas' and 'front'
@@ -50,13 +60,21 @@ class repository:
         
         return cls(policy,title, chapter, section, article, sentence, rep_str)  #return a repository with the previously defined attributes
     
-    def match(self, other):            #checks if the search-criteria defined in repository 'other' is matching the the current repository                                                
+    def match(self, other):       
+        """
+        Checks if the attributes of the search-criteria are a subset of the attributes of the current directory (=match)
+        """                                                    
         self_value_set = set([x for x in list(self.__dict__.values()) if x != None]) #creates a set of all the attributes ignoring 'None'    
         other_value_set = set([x for x in list(other.__dict__.values()) if x != None])
         
         return set(other_value_set).issubset(self_value_set) #returns True if the attributes of the search-criteria is a subset of the attributes of the current directory (=match)
     
 class token:
+    """ 
+    A token is a single word or punctuation mark in a sentence. It has a start and stop position in the sentence and a text. 
+    Furthermore it has a list of spans that labeled this token and a repository that defines the Article it belongs to.
+    
+    """
     def __init__(self, start, stop, text, rep):
         self.start = start
         self.stop = stop
@@ -69,6 +87,7 @@ class token:
 
     
     def get_token_spans(self, annotators = 'Curation'):
+        """ Returns a list of spans that labeled this token """
 
         if annotators == 'all':
             return self.spans
@@ -78,27 +97,17 @@ class token:
 
         if annotators == 'Curation': 
             return [span_ for span_  in self.spans if 'Curation' in span_.annotator]
-
+            
         else:
             return [span_ for span_  in self.spans if annotators in span_.annotator]
 
 
     def get_token_tags(self, annotators = 'Curation'):
-    
-        if annotators == 'all':
-            return [span_.tag_ for span_  in self.spans]
-            
-        if annotators == 'annotators':
-            return [span_.tag_ for span_  in self.spans if 'Curation' not in span_.annotator]
-
-        if annotators == 'Curation': 
-            return [span_.tag_ for span_  in self.spans if 'Curation' in span_.annotator]
-
-        else:
-            return [span_.tag_ for span_  in self.spans if annotators in span_.annotator]
-
+        """ Returns a list of tags for the token """
+        return [span_.tag for span_ in self.get_token_spans(annotators)]
 
     def get_span_count(self, annotators = 'Curation'):
+        """ Returns the number of spans that labeled this token """
         return len(self.get_token_spans(annotators))
         
     def __repr__(self):
@@ -108,11 +117,17 @@ class token:
         return hash((self.start, self.stop, self.text))
         
 class span:
-    def __init__(self, span_id = None, layer_ = None, type_ = None, tag_ = None, start = None, stop = None, text = None, tokens = None, rep = None, annotator = None):
+    """ 
+    A span is a labeled part of a sentence. It has a start and stop position in the sentence and a text.
+    Furthermore it has a list of tokens that are part of this span and a repository that defines the Article it belongs to.
+    The label of each span is characterized by a layer, a feature and a tag.
+
+    """
+    def __init__(self, span_id = None, layer = None, feature = None, tag = None, start = None, stop = None, text = None, tokens = None, rep = None, annotator = None):
         self.span_id = span_id
-        self.layer_ = layer_
-        self.type_ = type_
-        self.tag_ = tag_
+        self.layer = layer
+        self.feature = feature
+        self.tag = tag
         self.start = start
         self.stop = stop
         self.text = text
@@ -120,25 +135,18 @@ class span:
         self.rep = rep
         self.annotator = annotator
 
-    
-    #def __del__(self):
-    #    print('Span ', self.span_id, ' was removed from the corpus')
 
     def __eq__(self, other): 
-        if isinstance(other, span):
-                # don't attempt to compare against unrelated types
+        if isinstance(other, span): # don't attempt to compare against unrelated types
             return self.span_id == other.span_id
         return False
 
     
     def __repr__(self): #for debugging purpose, defines how object is printed
-        return f"span id:{self.span_id} annotator:{self.annotator} layer:{self.layer_} type:{self.type_} tag:{self.tag_} start:{self.start} stop:{self.stop} text:{self.text}"
+        return f"span id:{self.span_id} annotator:{self.annotator} layer:{self.layer} feature:{self.feature} tag:{self.tag} start:{self.start} stop:{self.stop} text:{self.text}"
 
     def __hash__(self):
-        return hash((self.annotator, self.layer_, self.type_, self.tag_, self.start, self.stop, self.text, self.rep.__hash__())) #tags with identical properties and identical repo shoudl yield the same hash so they can be removed
-
-    def get_start(self):
-        return self.start
+        return hash((self.annotator, self.layer, self.feature, self.tag, self.start, self.stop, self.text, self.rep.__hash__())) #tags with identical properties and identical repo shoudl yield the same hash so they can be removed
 
     def exact_match(self, other):
         return self.start == other.start and self.stop == other.stop and self.tag_ == other.tag_
@@ -147,6 +155,11 @@ class span:
         return self.start < other.stop and other.start < self.stop and self.tag_ == other.tag_
     
     def tokenwise_f1_score(self, other):
+        """
+        Calculates the f1 score between two spans based on the shared tokens.
+
+        """
+
         if self.tag_ != other.tag_:
             return 0
         if self.tag_ == None or other.tag_ == None:
