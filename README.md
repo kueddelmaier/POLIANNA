@@ -53,6 +53,9 @@ The notebook ``notebooks/Analysis.ipynb`` contains the descriptive analysis of t
 ## Tests and more examples
 Test notebooks can be found under ``notebooks/test_notebooks`` and more examples (such as sentence wise implementation) can be found under ``notebooks/other``.
 
+## Other scripts to process your own data
+For the labeled data, we have split the EU laws into articles. We provide the scripts to download EU laws as ``text_processing/download_searches.py`` and to split those into articles as ``text_processing/process_text.ipynb``.
+
 ## References
 [^1]: https://pygamma-agreement.readthedocs.io/en/latest/
 [^2]: https://github.com/inception-project
