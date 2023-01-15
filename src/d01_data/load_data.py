@@ -25,21 +25,10 @@ from definitions import ROOT_DIR, RAW_DATA_PATH
 stat_df = pd.DataFrame(columns = ['Policy', 'Text', 'Tokens', 'Article_State', 'Finished_Annotators', 'Curation'], dtype = object) #create the initial dataframe
 tagsets = ['Policydesigncharacteristics','Technologyandapplicationspecificity','Instrumenttypes']
 
-annotator_look_up = {}
-span_counter = {}
+
 error_span_list = []
 
 
-def return_annotator_letter(annotator):
-    
-    if annotator in annotator_look_up:
-        return annotator_look_up[annotator]
-    else:
-        char = chr(ord('@')+len(annotator_look_up)+1)
-        annotator_look_up[annotator] = char
-        span_counter[annotator] = 1
-        return char
-    
 
 if __name__ == "__main__":
 
@@ -78,6 +67,7 @@ if __name__ == "__main__":
     project_log = json_files_dir[0]
 
     article_state = {}
+
     with open(os.path.join(RAW_DATA_PATH, project_log)) as json_file:
         article_state_data = json.load(json_file)
         for article in article_state_data['source_documents']:
@@ -89,6 +79,29 @@ if __name__ == "__main__":
             this_state = {'state': article['state'],
                         'finished_coders': finished_coders}
             article_state[policy_name] = this_state
+
+
+    #Get a set of all annotators, so anonymous letter asigning is deterministic
+    all_annotators = []
+    for subdir in annotator_subdirs:
+        for ann_folder in os.listdir(os.path.join(annotator_path,subdir)):
+
+            try:
+                archive = zipfile.ZipFile(os.path.join(annotator_path,subdir, ann_folder), 'r') #decode compressed json in zip file
+                files = archive.namelist()
+                json_names = [file[:-5] for file in files if file.endswith('json')]
+                all_annotators = all_annotators + json_names
+
+            except:
+                logging.error(f"Could not process {ann_folder}")
+    
+    annotators = sorted(list(set(all_annotators)))
+
+
+    # Initialie the dictionary for the anonymization of annotators
+    annotator_look_up = {ann: chr(ord('@')+i+1) for i, ann in enumerate(annotators)}
+
+    span_counter = {ann:1 for ann in annotators}
 
 
     #curation subdirs should be a subset of annotator_subdirs
@@ -123,15 +136,14 @@ if __name__ == "__main__":
                 json_file_byte_decode = json_file_byte.decode('utf8')    #decode to json
                 data = json.loads(json_file_byte_decode)
 
-                ann_letter = return_annotator_letter(annotator)
             
             except:
                 logging.error(f"Could not process {ann_folder}")
 
             else:
                 if args.anonymous_annotators:
-                    if return_annotator_letter(annotator) not in stat_df.columns: #check if annotator already in dataframe, if not append empry column
-                        stat_df[return_annotator_letter(annotator)] = ''
+                    if annotator_look_up[annotator] not in stat_df.columns: #check if annotator already in dataframe, if not append empry column
+                        stat_df[annotator_look_up[annotator]] = ''
                 else:
                     if annotator not in stat_df.columns: #check if annotator already in dataframe, if not append empry column
                         stat_df[annotator] = ''
@@ -150,7 +162,7 @@ if __name__ == "__main__":
                     stat_df['Article_State'].loc[subdir_index] = article_state[subdir]['state']
 
                     if args.anonymous_annotators:
-                        stat_df['Finished_Annotators'].loc[subdir_index] = [return_annotator_letter(ann) for ann in article_state[subdir]['finished_coders']]
+                        stat_df['Finished_Annotators'].loc[subdir_index] = [annotator_look_up[ann] for ann in article_state[subdir]['finished_coders']]
                     else:
                         stat_df['Finished_Annotators'].loc[subdir_index] = article_state[subdir]['finished_coders']
 
@@ -184,12 +196,14 @@ if __name__ == "__main__":
                             len_doubles = len([dspan for dspan in spanlist if dspan.tag == tag and dspan.start == start and dspan.stop == stop])
                             if len_doubles != 0:
                                 continue
-                            span_id =  ann_letter + str(span_counter[annotator])
+                
                             
                             if args.anonymous_annotators:
-                                span_ = span(span_id, category, feature, tag , start ,stop , sentence[start:stop], span_tokens, rep, return_annotator_letter(annotator))
+                                span_id =  annotator_look_up[annotator] + str(span_counter[annotator])
+                                span_ = span(span_id, category, feature, tag , start ,stop , sentence[start:stop], span_tokens, rep, annotator_look_up[annotator])
                             
                             else:
+                                span_id =  annotator + str(span_counter[annotator])
                                 span_ = span(span_id, category, feature, tag , start ,stop , sentence[start:stop], span_tokens, rep, annotator)
 
                             spanlist.append(span_)
@@ -201,7 +215,7 @@ if __name__ == "__main__":
                     spanlist_clean = utils.remove_span_doublicates(spanlist)
 
                 if args.anonymous_annotators: 
-                    stat_df[return_annotator_letter(annotator)].loc[subdir_index] = spanlist_clean
+                    stat_df[annotator_look_up[annotator]].loc[subdir_index] = spanlist_clean
                 else:
                     stat_df[annotator].loc[subdir_index] = spanlist_clean
 
@@ -289,10 +303,9 @@ if __name__ == "__main__":
     if not os.path.exists(processed_out_dir):
         os.makedirs(processed_out_dir)
 
-    #out_dir_pkl = os.path.join(ROOT_DIR,'data/02_processed_to_dataframe', 'preprocessed_dataframe_anonymous.pkl')
-    out_dir_pkl = os.path.join(ROOT_DIR,'data/02_processed_to_dataframe', 'preprocessed_dataframe_test.pkl')
+    out_dir_pkl = os.path.join(ROOT_DIR,'data/02_processed_to_dataframe', 'preprocessed_dataframe.pkl')
     stat_df.to_pickle(out_dir_pkl)
-    out_dir_csv = os.path.join(ROOT_DIR,'data/02_processed_to_dataframe', 'preprocessed_dataframe_test.csv')
+    out_dir_csv = os.path.join(ROOT_DIR,'data/02_processed_to_dataframe', 'preprocessed_dataframe.csv')
     stat_df.to_csv(out_dir_csv)
 
     print('out_dir: ', out_dir_pkl)

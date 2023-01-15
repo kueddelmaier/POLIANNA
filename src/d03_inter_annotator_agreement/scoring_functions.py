@@ -18,8 +18,6 @@ from src.d03_inter_annotator_agreement.span_matching import create_tuples_pygamm
 logger = logging.getLogger("cvxpy")
 logger.setLevel(logging.CRITICAL)
 
-
-
 def check_symmetric(a, rtol=1e-05, atol=1e-08):
     
     """
