@@ -40,8 +40,8 @@ def create_scoring_matrix(tagset_path, soft_dissimilarity_penality = 0.5, soft_l
     """
     assert 0 <= soft_dissimilarity_penality <= 1, "soft_dissimilarity_penality should be a value between 0 and 1"
 
-    if soft_layer_dissimilarity == soft_tagset_dissimilarity:
-        raise ValueError('Soft_layer_dissimilarity and soft_tagset_dissimilarity need to be different!')
+    if soft_layer_dissimilarity == soft_tagset_dissimilarity == True:
+        raise ValueError('Soft_layer_dissimilarity and soft_tagset_dissimilarity can not both be True!')
    
     with open(tagset_path) as json_file:
         try:
@@ -63,25 +63,31 @@ def create_scoring_matrix(tagset_path, soft_dissimilarity_penality = 0.5, soft_l
 
             matrix_list.append(layer_tags)
 
-    if soft_tagset_dissimilarity: #if soft_tagset_dissimilarity = True, all the missmatches within the same tagset are penalized with the soft_dissimilarity_penality
+    elif soft_tagset_dissimilarity: #if soft_tagset_dissimilarity = True, all the missmatches within the same tagset are penalized with the soft_dissimilarity_penality
         for layer in data['layers']:
             for tagset in layer['tagsets']:
                 tagset_tags = []
                 for tag in tagset['tags']:
                     tagset_tags.append(tag['tag_name'])
                 matrix_list.append(tagset_tags)
-    
+
+    else:
+        for layer in data['layers']:
+            for tagset in layer['tagsets']:
+                for tag in tagset['tags']:
+                    matrix_list.append([tag['tag_name']])
+        
 
     matrix_flat = list(chain.from_iterable(matrix_list)) #transform to 1dim list
     matrix_flat.append('')    #handles empty annotations
     matrix_flat_ordered = SortedSet(matrix_flat) #transform to otrdered set since this is required in the new version of pygamma-agreement
     matrix_array = np.ones((len(matrix_flat_ordered), len(matrix_flat_ordered))) #by default, the penalty of a missmatch between two different tags is 1
 
-
-    for tag in matrix_flat_ordered: # iterate over all the tags
-        for sublist in matrix_list: 
-            if tag in sublist:
-                matrix_array[matrix_flat_ordered.index(tag),[matrix_flat_ordered.index(sub_list_tag) for sub_list_tag in sublist]] = soft_dissimilarity_penality #all the missmatches for the same catergory (layer or tagset) get the soft penalty
+    if soft_layer_dissimilarity or soft_tagset_dissimilarity:
+        for tag in matrix_flat_ordered: # iterate over all the tags
+            for sublist in matrix_list: 
+                if tag in sublist:
+                    matrix_array[matrix_flat_ordered.index(tag),[matrix_flat_ordered.index(sub_list_tag) for sub_list_tag in sublist]] = soft_dissimilarity_penality #all the missmatches for the same catergory (layer or tagset) get the soft penalty
 
     np.fill_diagonal(matrix_array,0) # the penalty for the the diagonal (no missmatch as true label = predicted label) is zero
 
@@ -89,6 +95,7 @@ def create_scoring_matrix(tagset_path, soft_dissimilarity_penality = 0.5, soft_l
     assert check_symmetric(matrix_array), "Matrix not symmetric"
 
     return matrix_flat_ordered, matrix_array
+
 
 def create_scoring_matrix_old(tagset_path, soft_dissimilarity_penality = 0.5, soft_layer_dissimilarity = False, soft_tagset_dissimilarity = False):
     """
