@@ -101,8 +101,16 @@ if __name__ == "__main__":
     # Initialie the dictionary for the anonymization of annotators
     annotator_look_up = {ann: chr(ord('@')+i+1) for i, ann in enumerate(annotators)}
 
+    # Initialize the dictionary for the span counter
     span_counter = {ann:1 for ann in annotators}
 
+    #Initialize the token counter
+    token_counter = 0
+
+    def gen_token_id():
+        global token_counter
+        token_counter +=1
+        return 'T' + str(token_counter)
 
     #curation subdirs should be a subset of annotator_subdirs
     if set(curation_subdirs).issubset(set(annotator_subdirs)) == False:
@@ -157,7 +165,8 @@ if __name__ == "__main__":
                     
                     all_tokens_json = data['_views']['_InitialView']['Token']
                     all_tokens_json[0]['begin'] = 0                            #the first token is missing the beginning
-                    token_list = [token(x['begin'], x['end'], sentence[x['begin']:x['end']], rep) for x in all_tokens_json]
+                    token_id = 'T' + str(token_counter)
+                    token_list = [token(gen_token_id(), x['begin'], x['end'], sentence[x['begin']:x['end']], rep) for x in all_tokens_json]
                     stat_df['Tokens'].loc[subdir_index] = token_list
                     stat_df['Article_State'].loc[subdir_index] = article_state[subdir]['state']
 

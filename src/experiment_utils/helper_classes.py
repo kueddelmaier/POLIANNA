@@ -75,7 +75,8 @@ class token:
     Furthermore it has a list of spans that labeled this token and a repository that defines the Article it belongs to.
     
     """
-    def __init__(self, start, stop, text, rep):
+    def __init__(self, token_id, start, stop, text, rep):
+        self.token_id = token_id
         self.start = start
         self.stop = stop
         self.text = text
@@ -103,18 +104,27 @@ class token:
 
 
     def get_token_tags(self, annotators = 'Curation'):
-        """ Returns a list of tags for the token """
+        """ Returns a list of tags that labeled this token """
         return [span_.tag for span_ in self.get_token_spans(annotators)]
+    
+
+    def get_token_span_id(self, annotators = 'Curation'):
+        """ Returns a list of all span_id that labeled this token """
+        return [span_.span_id for span_ in self.get_token_spans(annotators)]
+    
 
     def get_span_count(self, annotators = 'Curation'):
         """ Returns the number of spans that labeled this token """
         return len(self.get_token_spans(annotators))
         
     def __repr__(self):
-        return f"start:{self.start} stop:{self.stop} text:{self.text} tag_count:{self.get_span_count(annotators ='Curation')}"
+        return f"token id: {self.token_id}, start:{self.start} stop:{self.stop} text:{self.text} tag_count:{self.get_span_count(annotators ='Curation')}"
 
     def __hash__(self): # used to remove duplicates
         return hash((self.start, self.stop, self.text))
+    
+    def to_json(self):
+        return {'token_id': self.token_id, 'start': self.start, 'stop': self.stop, 'text': self.text}
         
 class span:
     """ 
@@ -181,6 +191,12 @@ class span:
             return f1
         else:
             raise ValueError('None of the mentioned')
+        
+    def to_json(self):
+        """
+        Returns a dictionary representation of the span.
+        """
+        return {'span_id': self.span_id, 'layer': self.layer, 'feature': self.feature, 'tag': self.tag, 'start': self.start, 'stop': self.stop, 'text': self.text, 'tokens': [token_.token_id for token_ in self.tokens]}
 
 
 

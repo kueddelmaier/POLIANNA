@@ -2,9 +2,12 @@ from itertools import chain
 import collections
 
 
-from definitions import df_annotation_marker
+from definitions import df_annotation_marker, ROOT_DIR
 import pandas as pd
 import copy
+import os
+import json
+
 
 def add_sent(obj, sentence):
     obj.rep.sentence = sentence
@@ -372,14 +375,181 @@ class Corpus:
         else:
             self.df.loc[repo.index_name]['Curation'].remove(target[0])
 
+    
+    def export_to_jsonl(self, metadata_path, save_path = 'data/d03_processed_to_jsonl'):
+
+        """
+
+        Exports corpus as jsonl format.
+
+        Parameters
+        ----------
+        metadata_path: string
+            Path to the metadata dataframe. Contains metadata about the policies
+
+        """
+        import jsonlines
+
+        save_path = os.path.join(ROOT_DIR, save_path)
+        os.makedirs(save_path, exist_ok = True)
+
+        metadata_df = pd.read_csv(metadata_path, index_col=0)  
+
+        for row in self.df.itertuples():
+            
+            if row.Article_State != 'CURATION_FINISHED':
+                continue
+            
+            folder_name = row.Index
+            policy_name = '_'.join(folder_name.split('_')[0:2])
+            
+            folder_path = os.path.join(save_path, folder_name)
+            os.makedirs(folder_path, exist_ok = True)
+            
+            ## find metadata in policy dataframe
+            
+            policy_metadata_col =  metadata_df[metadata_df['Filename'] == policy_name]
+            
+            assert policy_metadata_col.shape[0] == 1, f"more than one column found for {folder_name} namely{metadata_df[metadata_df['Filename'] == policy_name]['Filename']} "
+            policy_metadata_col = policy_metadata_col.iloc[0] 
+            metadata_dict = {}
+            metadata_dict["Titel"] = folder_name
+            metadata_dict["CELEX_Number"] = policy_metadata_col["CELEX number"]
+            metadata_dict["ELI"] = policy_metadata_col["ELI"]
+            metadata_dict["Annotators"] = row.Finished_Annotators
             
 
-    def export_to_json(self):
-        pass
+            
+            metadata_json = json.dumps(metadata_dict, indent = 2) 
+            
+            with open(os.path.join(folder_path, 'Policy_Info.json'), "w") as outfile:
+                outfile.write(metadata_json)
+            
+                        
+            #text
+            f= open(os.path.join(folder_path, 'Raw_Text.txt'),"w")
+            f.write(row.Text)
+            f.close()
 
 
-    
+            # Tokens
+            token_list = [tok.to_json() for tok in row.Tokens]
+            
+            with jsonlines.open(os.path.join(folder_path, 'Tokens.jsonl'), 'w') as writer:
+                writer.write_all(token_list)
+
+
+            # Curation
+            cur_span_list = [span_.to_json() for span_ in row.Curation]
+
+            with jsonlines.open(os.path.join(folder_path, 'Curated_Annotations.jsonl'), 'w') as writer:
+                writer.write_all(cur_span_list)
+
+
+            # Annotations
+            coder_annotation_folder = os.path.join(folder_path, 'coder_annotations')
+            os.makedirs(coder_annotation_folder, exist_ok = True)
+
+            for ann in row.Finished_Annotators:
+                ann_span_list  = [span_.to_json() for span_ in getattr(row, ann)]
+
+                with jsonlines.open(os.path.join(coder_annotation_folder, 'Annotations_{}.jsonl'.format(ann)), 'w') as writer:
+                    writer.write_all(ann_span_list)
+                
+
+
+    def export_to_json(self, metadata_path, save_path = 'data/d03_processed_to_json'):
+
+        """
+
+        Exports corpus as json format.
+
+        Parameters
+        ----------
+        metadata_path: string
+            Path to the metadata dataframe. Contains metadata about the policies
+
+        """
+        save_path = os.path.join(ROOT_DIR, save_path)
+        os.makedirs(save_path, exist_ok = True)
+
+        metadata_df = pd.read_csv(metadata_path, index_col=0)  
+
+
+        for row in self.df.itertuples():
+            
+            if row.Article_State != 'CURATION_FINISHED':
+                continue
+            
+            folder_name = row.Index
+            policy_name = '_'.join(folder_name.split('_')[0:2])
+            
+            folder_path = os.path.join(save_path, folder_name)
+            os.makedirs(folder_path, exist_ok = True)
+            
+            ## find metadata in policy dataframe
+            
+            policy_metadata_col =  metadata_df[metadata_df['Filename'] == policy_name]
+            
+            assert policy_metadata_col.shape[0] == 1, f"more than one column found for {folder_name} namely{metadata_df[metadata_df['Filename'] == policy_name]['Filename']} "
+            policy_metadata_col = policy_metadata_col.iloc[0] 
+            metadata_dict = {}
+            metadata_dict["Titel"] = folder_name
+            metadata_dict["CELEX_Number"] = policy_metadata_col["CELEX number"]
+            metadata_dict["ELI"] = policy_metadata_col["ELI"]
+            metadata_dict["Annotators"] = row.Finished_Annotators
+            
+
+            
+            metadata_json = json.dumps(metadata_dict, indent = 2) 
+           
+            with open(os.path.join(folder_path, 'Policy_Info.json'), "w") as outfile:
+                outfile.write(metadata_json)
+            
+                        
+            #text
+            f= open(os.path.join(folder_path, 'Raw_Text.txt'),"w")
+            f.write(row.Text)
+            f.close()
+            
+            # Tokens
+            token_list = [tok.to_json() for tok in row.Tokens]
+            json_tokens = json.dumps(token_list, indent = 2)
+            
+            with open(os.path.join(folder_path, 'Tokens.json'), "w") as outfile:
+                outfile.write(json_tokens)
+                
+
+            # Curation
+            cur_span_list = [span_.to_json() for span_ in row.Curation]
+            json_cur_spans = json.dumps(cur_span_list, indent = 2)
+            
+            with open(os.path.join(folder_path, 'Curated_Annotations.json'), "w") as outfile:
+                outfile.write(json_cur_spans)
+                
+            # Annotations
+
+
+            annotations_json = {}
+            for ann in row.Finished_Annotators:
+                
+                annotations_json[ann]  = [span_.to_json() for span_ in getattr(row, ann)]
+                
+                #annotations_json = [span_ for span_ in gindent = 2etattr(row, ann)]
+                
+            json_ann_spans = json.dumps(annotations_json, indent = 2)
+            
+            with open(os.path.join(folder_path, 'Coder_Annotations.json'), "w") as outfile:
+                outfile.write(json_ann_spans)
+
+
 class Sent_Corpus(Corpus):
+
+    """
+    [Experimental]
+
+    Sentence based corpus. Every sentence is a row in the dataframe
+    """
 
     def __init__(self, stat_df, front_and_whereas = False):
 
