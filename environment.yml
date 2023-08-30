@@ -12,6 +12,7 @@ dependencies:
   - ipykernel
   - ipywidgets
   - plotly
+  - plotly-orca
   - requests
 
 

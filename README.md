@@ -1,11 +1,11 @@
 # POLIcy design ANNotAtions (POLIANNA)
 
-This repository contains the code for the manuscript entitled "POLIcy design ANNotAtions (POLIANNA): A dataset for analysing legal texts" [Link to follow]. 
+This repository contains the code for the manuscript entitled "Towards understanding policy design through text-as-data approaches: The POLIcy design ANNotAtions (POLIANNA) dataset" [Link to follow]. 
 
 This README is not intended to be self-explanatory, but rather should be read together with the original paper. Below we give an overview of the project and how to use this repository. 
 
 ## Paper abstract
-Despite the importance of ambitious policy action for addressing climate change, large and systematic assessments of policies and their design are lacking as analysing text manually is labor-intensive and costly. POLIANNA is a dataset of legislative texts from the European Union (EU) that are annotated based on theoretical concepts of policy design, which can be used to develop supervised machine learning approaches for scaling policy analysis. The dataset consists of 412 annotated legislative articles, drawn from 18 EU climate change mitigation and renewable energy laws. We developed a novel coding scheme translating existing taxonomies of policy design elements to a method for annotating text spans that consist of one or several words. Here, we provide the coding scheme, a description of the annotated corpus, and an analysis of inter-annotator agreement, and discuss potential applications. As understanding policy texts is still difficult for current text-processing algorithms, we envision this database to be used for building tools that help with manual coding of policy texts by automatically proposing paragraphs containing relevant information.
+Despite the importance of ambitious policy action for addressing climate change, large and systematic assessments of public policies and their design are lacking as analysing text manually is labour-intensive and costly. POLIANNA is a dataset of policy texts from the European Union (EU) that are annotated based on theoretical concepts of policy design, which can be used to develop supervised machine learning approaches for scaling policy analysis. The dataset consists of 20,577 annotated spans, drawn from 18 EU climate change mitigation and renewable energy policies. We developed a novel coding scheme translating existing taxonomies of policy design elements to a method for annotating text spans that consist of one or several words. Here, we provide the coding scheme, a description of the annotated corpus, and an analysis of inter-annotator agreement, and discuss potential applications. As understanding policy texts is still difficult for current text-processing algorithms, we envision this database to be used for building tools that help with manual coding of policy texts by automatically proposing paragraphs containing relevant information.
 
 ## Installing dependencies
 
@@ -24,7 +24,7 @@ pip install git+https://github.com/bootphon/pygamma-agreement.git
 
 ## Data
 
-The annotated corpus is publicly available at [insert link where data is published]. This folder contains a file with the data preprocessed as a dataframe as it is needed for working with this repository. If you wish to process data from scratch, for example to add your own annotatations, we also provide a way to process data exported from Inception[^2].
+The annotated corpus is publicly available at https://doi.org/10.5281/zenodo.8284380. This folder contains a file with the data preprocessed as a dataframe as it is needed for working with this repository. If you wish to process data from scratch, for example to add your own annotatations, we also provide a way to process data exported from Inception[^2].
 
 ### Processed data
 Download this folder and store the subfolder 02_processed_to_dataframe under the directory ``/data/02_processed_to_dataframe``.
@@ -43,6 +43,9 @@ The Corpus class in ``src/d02_corpus_statistics/corpus.py`` contains all the rel
 
 ## Inter-Annotator Agreement Class
 The Inter Annotator Agreement class in ``src/d03_inter_annotator_agreement`` contains all the relevant functions to calculate the relevant inter annotator agreement scores. A working example of all the functions can be found in the Jupyter Notebook ``notebooks/Inter_Annotator_Agreement.ipynb``
+
+## Coding scheme
+A file containing the coding scheme in JSON format can be found in the provided dataset at ``01_policy_info/Coding_Scheme.json``. Store this under the ``data`` directory as well.
 
 ## Getting started
 The Jupyter Notebook ``notebooks/Tutorial.ipynb`` introduces the classes and simple examples how to work with the data.
