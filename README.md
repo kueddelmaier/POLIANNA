@@ -1,6 +1,6 @@
 # POLIcy design ANNotAtions (POLIANNA)
 
-This repository contains the code for the journal article entitled "Towards understanding policy design through text-as-data approaches: The POLIcy design ANNotAtions (POLIANNA) dataset" [Sci Data 10, 896 (2023)](https://doi.org/10.1038/s41597-023-02801-z). 
+This repository contains the code for the journal article Sewerin, S., Kaack, L.H., Küttel, J. et al. Towards understanding policy design through text-as-data approaches: The policy design annotations (POLIANNA) dataset. Sci Data 10, 896 (2023). [https://doi.org/10.1038/s41597-023-02801-z](https://doi.org/10.1038/s41597-023-02801-z).
 
 This README is not intended to be self-explanatory, but rather should be read together with the original paper. Below we give an overview of the project and how to use this repository. 
 
